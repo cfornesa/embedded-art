@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/constants.php';
+
 /**
  * app/lib/piece.php
  * Validation helpers for piece payloads.
@@ -28,7 +30,7 @@ function normalize_slug(string $s): string {
   $s = preg_replace('/[^a-z0-9\-]+/', '-', $s) ?? "";
   $s = preg_replace('/\-+/', '-', $s) ?? "";
   $s = trim($s, "-");
-  if (strlen($s) > 60) $s = substr($s, 0, 60);
+  if (strlen($s) > SLUG_MAX_LENGTH) $s = substr($s, 0, SLUG_MAX_LENGTH);
   return $s;
 }
 
@@ -37,7 +39,7 @@ function generate_slug(): string {
 }
 
 function generate_admin_key(): string {
-  return bin2hex(random_bytes(32));
+  return bin2hex(random_bytes(ADMIN_KEY_LENGTH));
 }
 
 function is_hex_color(string $c): bool {
@@ -51,17 +53,21 @@ function validate_image_url(string $url): void {
   }
   $parts = parse_url($url);
   $path = strtolower((string)($parts["path"] ?? ""));
-  $ok = (
-    str_ends_with($path, ".png") ||
-    str_ends_with($path, ".jpg") ||
-    str_ends_with($path, ".jpeg") ||
-    str_ends_with($path, ".webp")
-  );
-  if (!$ok) {
-    throw new Exception("Image URL must end in .png, .jpg, .jpeg, or .webp");
+
+  $ok = false;
+  foreach (ALLOWED_IMAGE_EXTENSIONS as $ext) {
+    if (str_ends_with($path, $ext)) {
+      $ok = true;
+      break;
+    }
   }
-  if (strlen($url) > 2048) {
-    throw new Exception("Image URL too long");
+
+  if (!$ok) {
+    $allowed = implode(', ', ALLOWED_IMAGE_EXTENSIONS);
+    throw new Exception("Image URL must end in one of: $allowed");
+  }
+  if (strlen($url) > URL_MAX_LENGTH) {
+    throw new Exception("Image URL too long (max " . URL_MAX_LENGTH . " chars)");
   }
 }
 
@@ -69,26 +75,26 @@ function validate_texture_data_url(string $dataUrl): void {
   if (!str_starts_with($dataUrl, "data:image/")) {
     throw new Exception("Invalid textureDataUrl");
   }
-  if (strlen($dataUrl) > 5_000_000) {
-    throw new Exception("textureDataUrl too large");
+  if (strlen($dataUrl) > TEXTURE_DATA_URL_MAX_SIZE) {
+    throw new Exception("textureDataUrl too large (max " . TEXTURE_DATA_URL_MAX_SIZE . " bytes)");
   }
 }
 
 function validate_shape_block(array $s): void {
   $type = (string)($s["type"] ?? "");
-  $allowed = ["box", "sphere", "cone", "torus"];
-  if (!in_array($type, $allowed, true)) {
-    throw new Exception("Invalid shapes[].type");
+  if (!in_array($type, ALLOWED_SHAPES, true)) {
+    $allowed = implode(', ', ALLOWED_SHAPES);
+    throw new Exception("Invalid shapes[].type (allowed: $allowed)");
   }
 
   $count = (int)($s["count"] ?? 0);
-  if ($count < 0 || $count > 10) {
-    throw new Exception("Invalid shapes[].count (must be 0–10)");
+  if ($count < SHAPE_COUNT_MIN || $count > SHAPE_COUNT_MAX) {
+    throw new Exception("Invalid shapes[].count (must be " . SHAPE_COUNT_MIN . "–" . SHAPE_COUNT_MAX . ")");
   }
 
   $size = (float)($s["size"] ?? 1.0);
-  if (!is_finite($size) || $size <= 0 || $size > 10) {
-    throw new Exception("Invalid shapes[].size (must be >0 and ≤10)");
+  if (!is_finite($size) || $size < SIZE_MIN || $size > SIZE_MAX) {
+    throw new Exception("Invalid shapes[].size (must be " . SIZE_MIN . "–" . SIZE_MAX . ")");
   }
 
   $palette = $s["palette"] ?? [];
@@ -146,21 +152,21 @@ function validate_config(array $config): void {
     if ($total <= 0) {
       throw new Exception("At least one shape must have count > 0");
     }
-    if ($total > 40) {
-      throw new Exception("Total instances must be 40 or less");
+    if ($total > TOTAL_INSTANCES_MAX) {
+      throw new Exception("Total instances must be " . TOTAL_INSTANCES_MAX . " or less");
     }
 
     if (isset($config["cameraZ"])) {
       $cameraZ = (float)$config["cameraZ"];
-      if (!is_finite($cameraZ) || $cameraZ < 1 || $cameraZ > 2000) {
-        throw new Exception("Invalid cameraZ");
+      if (!is_finite($cameraZ) || $cameraZ < CAMERA_Z_MIN || $cameraZ > CAMERA_Z_MAX) {
+        throw new Exception("Invalid cameraZ (must be " . CAMERA_Z_MIN . "–" . CAMERA_Z_MAX . ")");
       }
     }
 
     if (isset($config["rotationSpeed"])) {
       $rotationSpeed = (float)$config["rotationSpeed"];
-      if (!is_finite($rotationSpeed) || $rotationSpeed < -1 || $rotationSpeed > 1) {
-        throw new Exception("Invalid rotationSpeed");
+      if (!is_finite($rotationSpeed) || $rotationSpeed < ROTATION_SPEED_MIN || $rotationSpeed > ROTATION_SPEED_MAX) {
+        throw new Exception("Invalid rotationSpeed (must be " . ROTATION_SPEED_MIN . "–" . ROTATION_SPEED_MAX . ")");
       }
     }
 
@@ -169,19 +175,19 @@ function validate_config(array $config): void {
 
   // Legacy single-shape config
   $shapeType = (string)($config["shapeType"] ?? "box");
-  $allowedShapes = ["box", "sphere", "cone", "torus"];
-  if (!in_array($shapeType, $allowedShapes, true)) {
-    throw new Exception("Invalid shapeType");
+  if (!in_array($shapeType, ALLOWED_SHAPES, true)) {
+    $allowed = implode(', ', ALLOWED_SHAPES);
+    throw new Exception("Invalid shapeType (allowed: $allowed)");
   }
 
   $uniformSize = (float)($config["uniformSize"] ?? 1.0);
-  if (!is_finite($uniformSize) || $uniformSize <= 0 || $uniformSize > 10) {
-    throw new Exception("Invalid uniformSize");
+  if (!is_finite($uniformSize) || $uniformSize < SIZE_MIN || $uniformSize > SIZE_MAX) {
+    throw new Exception("Invalid uniformSize (must be " . SIZE_MIN . "–" . SIZE_MAX . ")");
   }
 
   $count = (int)($config["count"] ?? 20);
-  if ($count < 1 || $count > 500) {
-    throw new Exception("Invalid count");
+  if ($count < LEGACY_COUNT_MIN || $count > LEGACY_COUNT_MAX) {
+    throw new Exception("Invalid count (must be " . LEGACY_COUNT_MIN . "–" . LEGACY_COUNT_MAX . ")");
   }
 
   // bg already validated above if present; default if missing

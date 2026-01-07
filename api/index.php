@@ -1,324 +1,333 @@
-// assets/js/builder.js
+<?php
+declare(strict_types=1);
 
-const form = document.querySelector("#builderForm");
-const msgBox = document.querySelector("#msgBox");
-const resultPanel = document.querySelector("#resultPanel");
-const linksRow = document.querySelector("#linksRow");
-const generateBtn = document.querySelector("#generateBtn");
-const resetBtn = document.querySelector("#resetBtn");
+require_once __DIR__ . "/../app/lib/constants.php";
+require_once __DIR__ . "/../app/lib/db.php";
+require_once __DIR__ . "/../app/lib/piece.php";
+require_once __DIR__ . "/../app/lib/logger.php";
+require_once __DIR__ . "/../app/lib/rate_limit.php";
 
-const slugEl = document.querySelector("#slug");
-const bgColorEl = document.querySelector("#bgColor");
-const bgImageUrlEl = document.querySelector("#bgImageUrl");
-const totalBadge = document.querySelector("#totalBadge");
+header("Content-Type: application/json; charset=utf-8");
 
-// Output fields
-const adminKeyPlain = document.querySelector("#adminKeyPlain");
-const embedSlugCode = document.querySelector("#embedSlugCode");
-const embedIdCode = document.querySelector("#embedIdCode");
+// Security headers
+header("X-Content-Type-Options: nosniff");
+header("X-Frame-Options: SAMEORIGIN");
+header("Referrer-Policy: strict-origin-when-cross-origin");
 
-const copyAdminKeyBtn = document.querySelector("#copyAdminKeyBtn");
-const copyEmbedSlugBtn = document.querySelector("#copyEmbedSlugBtn");
-const copyEmbedIdBtn = document.querySelector("#copyEmbedIdBtn");
-
-const openEmbedSlugBtn = document.querySelector("#openEmbedSlugBtn");
-const openEmbedIdBtn = document.querySelector("#openEmbedIdBtn");
-
-const SHAPES = [
-  { type: "box",    countId: "boxCount",    sizeId: "boxSize",    colorId: "boxColor",    texId: "boxTex",    countValId: "boxCountVal",    sizeValId: "boxSizeVal" },
-  { type: "sphere", countId: "sphereCount", sizeId: "sphereSize", colorId: "sphereColor", texId: "sphereTex", countValId: "sphereCountVal", sizeValId: "sphereSizeVal" },
-  { type: "cone",   countId: "coneCount",   sizeId: "coneSize",   colorId: "coneColor",   texId: "coneTex",   countValId: "coneCountVal",   sizeValId: "coneSizeVal" },
-  { type: "torus",  countId: "torusCount",  sizeId: "torusSize",  colorId: "torusColor",  texId: "torusTex",  countValId: "torusCountVal",  sizeValId: "torusSizeVal" }
+// CORS headers (adjust for your domains in production)
+$allowed_origins = is_replit() ? ['*'] : [
+  'https://your-production-domain.com',
+  'https://your-staging-domain.com'
 ];
 
-function setMsg(text, kind = "info") {
-  msgBox.classList.remove("d-none", "alert-info", "alert-success", "alert-danger", "alert-warning", "alert-secondary");
-  msgBox.classList.add(`alert-${kind}`);
-  msgBox.textContent = text;
-  msgBox.classList.remove("d-none");
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if (in_array('*', $allowed_origins, true) || in_array($origin, $allowed_origins, true)) {
+  header("Access-Control-Allow-Origin: " . (in_array('*', $allowed_origins, true) ? '*' : $origin));
+  header("Access-Control-Allow-Methods: GET, POST, PATCH, DELETE, OPTIONS");
+  header("Access-Control-Allow-Headers: Content-Type, X-Admin-Key");
+  header("Access-Control-Max-Age: 86400");
 }
 
-function clearMsg() {
-  msgBox.classList.add("d-none");
-  msgBox.textContent = "";
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+  http_response_code(204);
+  exit;
 }
 
-function normalizeSlug(s) {
-  s = (s || "").toLowerCase().trim();
-  s = s.replace(/[^a-z0-9\-]+/g, "-");
-  s = s.replace(/\-+/g, "-");
-  s = s.replace(/^\-+|\-+$/g, "");
-  if (s.length > 60) s = s.slice(0, 60);
-  return s;
+function json_in(): array {
+  $raw = file_get_contents("php://input") ?: "";
+  $data = json_decode($raw, true);
+  if (!is_array($data)) throw new Exception("Invalid JSON");
+  return $data;
 }
 
-function isHexColor(c) {
-  return typeof c === "string" && /^#[0-9a-fA-F]{6}$/.test(c);
+function respond(int $code, array $payload): void {
+  http_response_code($code);
+  echo json_encode($payload);
+  exit;
 }
 
-function validateImageUrl(url) {
-  if (!url) return null;
+try {
+  $uri = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH) ?: "";
+  $path = trim($uri, "/");         // api/pieces/123
+  $segments = $path === "" ? [] : explode("/", $path);
 
-  const u = url.trim();
-  if (!/^https?:\/\//i.test(u)) return "URL must start with http:// or https://";
-
-  let path = "";
-  try {
-    const parsed = new URL(u);
-    path = (parsed.pathname || "").toLowerCase();
-  } catch {
-    return "Invalid URL format";
+  if (count($segments) < 2 || $segments[0] !== "api") {
+    respond(404, ["error" => "Not found"]);
   }
 
-  const ok =
-    path.endsWith(".png") ||
-    path.endsWith(".jpg") ||
-    path.endsWith(".jpeg") ||
-    path.endsWith(".webp");
+  $method = $_SERVER["REQUEST_METHOD"];
+  $resource = $segments[1] ?? "";
 
-  if (!ok) return "URL must end in .png, .jpg, .jpeg, or .webp";
-  if (u.length > 2048) return "URL too long";
-  return null;
-}
-
-function getInt(id) {
-  const el = document.querySelector(`#${id}`);
-  return Number(el?.value || 0) | 0;
-}
-
-function getFloat(id) {
-  const el = document.querySelector(`#${id}`);
-  const v = Number(el?.value || 0);
-  return Number.isFinite(v) ? v : 0;
-}
-
-function getVal(id) {
-  const el = document.querySelector(`#${id}`);
-  return (el?.value || "").toString().trim();
-}
-
-async function copyToClipboard(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    setMsg("Copied to clipboard.", "success");
-  } catch {
-    const ta = document.createElement("textarea");
-    ta.value = text;
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    document.execCommand("copy");
-    ta.remove();
-    setMsg("Copied to clipboard.", "success");
-  }
-}
-
-function updateBadges() {
-  let total = 0;
-
-  for (const s of SHAPES) {
-    const count = getInt(s.countId);
-    const size = getFloat(s.sizeId);
-
-    const countVal = document.querySelector(`#${s.countValId}`);
-    const sizeVal = document.querySelector(`#${s.sizeValId}`);
-
-    if (countVal) countVal.textContent = String(count);
-    if (sizeVal) sizeVal.textContent = size.toFixed(1);
-
-    total += count;
+  // GET /api/health (never hard-fails; always 200)
+  if ($method === "GET" && $resource === "health") {
+    respond(200, db_health());
   }
 
-  totalBadge.textContent = String(total);
-  if (total > 40) totalBadge.classList.add("text-danger");
-  else totalBadge.classList.remove("text-danger");
-}
+  // GET /api/debug/db  (dev-only; never requires DB connection)
+  if ($method === "GET" && $resource === "debug" && (($segments[2] ?? "") === "db")) {
+    $debugEnabled = is_replit() || (getenv("ENABLE_DEBUG_ENDPOINTS") === "1");
+    if (!$debugEnabled) respond(404, ["error" => "Not found"]);
 
-for (const s of SHAPES) {
-  const c = document.querySelector(`#${s.countId}`);
-  const z = document.querySelector(`#${s.sizeId}`);
-  c?.addEventListener("input", updateBadges);
-  z?.addEventListener("input", updateBadges);
-}
-updateBadges();
+    if (!function_exists("db_debug_info")) {
+      respond(200, [
+        "ok" => false,
+        "driver" => "none",
+        "error" => "db_debug_info() is not defined. Add it to app/lib/db.php inside the PHP block."
+      ]);
+    }
 
-slugEl.addEventListener("blur", () => {
-  slugEl.value = normalizeSlug(slugEl.value);
-});
-
-resetBtn.addEventListener("click", () => {
-  form.reset();
-
-  bgColorEl.value = "#000000";
-  for (const s of SHAPES) {
-    document.querySelector(`#${s.countId}`).value = "0";
-    document.querySelector(`#${s.sizeId}`).value = "1";
-    document.querySelector(`#${s.colorId}`).value = "#ffffff";
-    document.querySelector(`#${s.texId}`).value = "";
-  }
-  bgImageUrlEl.value = "";
-  slugEl.value = "";
-
-  clearMsg();
-  resultPanel.classList.add("d-none");
-  linksRow.innerHTML = "";
-  adminKeyPlain.textContent = "";
-  embedSlugCode.value = "";
-  embedIdCode.value = "";
-  openEmbedSlugBtn.removeAttribute("href");
-  openEmbedIdBtn.removeAttribute("href");
-
-  updateBadges();
-});
-
-function buildIframe(srcUrl) {
-  return `<iframe src="${srcUrl}" width="100%" height="600" style="border:0;" loading="lazy" allowfullscreen></iframe>`;
-}
-
-function renderOutput({ id, slug, adminKey }) {
-  const base = location.origin;
-  const slugUrl = slug ? `${base}/embed.html?id=${encodeURIComponent(slug)}` : "";
-  const idUrl = `${base}/embed.html?id=${encodeURIComponent(String(id))}`;
-
-  // Admin key: plain text
-  adminKeyPlain.textContent = adminKey || "";
-
-  // Embed codes
-  embedSlugCode.value = slug ? buildIframe(slugUrl) : "(no slug available)";
-  embedIdCode.value = buildIframe(idUrl);
-
-  // Open buttons
-  if (slug) {
-    openEmbedSlugBtn.href = slugUrl;
-    openEmbedSlugBtn.classList.remove("disabled");
-    openEmbedSlugBtn.setAttribute("aria-disabled", "false");
-  } else {
-    openEmbedSlugBtn.removeAttribute("href");
-    openEmbedSlugBtn.classList.add("disabled");
-    openEmbedSlugBtn.setAttribute("aria-disabled", "true");
+    respond(200, db_debug_info());
   }
 
-  openEmbedIdBtn.href = idUrl;
+  // Everything below requires a DB connection
+  $pdo = pdo_conn();
 
-  // Quick links
-  linksRow.innerHTML = "";
+  if ($resource !== "pieces") {
+    respond(404, ["error" => "Not found"]);
+  }
 
-  const mkLinkBtn = (href, label) => {
-    const a = document.createElement("a");
-    a.className = "btn btn-outline-light btn-sm";
-    a.href = href;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = label;
-    return a;
-  };
+  // POST /api/pieces
+  if ($method === "POST" && count($segments) === 2) {
+    // Rate limiting for POST requests
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+    check_rate_limit($ip, RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_SECONDS);
 
-  if (slug) linksRow.appendChild(mkLinkBtn(slugUrl, "Open embed (slug)"));
-  linksRow.appendChild(mkLinkBtn(idUrl, "Open embed (id)"));
+    $body = json_in();
+    if (!isset($body["config"]) || !is_array($body["config"])) throw new Exception("Missing config");
 
-  const del = document.createElement("a");
-  del.className = "btn btn-outline-light btn-sm";
-  del.href = `${base}/delete.html?id=${encodeURIComponent(String(id))}`;
-  del.textContent = "Open delete page";
-  linksRow.appendChild(del);
+    $config = $body["config"];
+    validate_config($config);
 
-  // Copy handlers
-  copyAdminKeyBtn.onclick = () => copyToClipboard(adminKey || "");
-  copyEmbedSlugBtn.onclick = () => copyToClipboard(embedSlugCode.value || "");
-  copyEmbedIdBtn.onclick = () => copyToClipboard(embedIdCode.value || "");
-}
+    $visibility = validate_visibility((string)($body["visibility"] ?? "public"));
+    $requestedSlug = normalize_slug((string)($body["slug"] ?? ""));
+    $adminKey = generate_admin_key();
 
-form.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  clearMsg();
+    $slug = $requestedSlug !== "" ? $requestedSlug : generate_slug();
 
-  resultPanel.classList.add("d-none");
-  linksRow.innerHTML = "";
-  adminKeyPlain.textContent = "";
-  embedSlugCode.value = "";
-  embedIdCode.value = "";
-  openEmbedSlugBtn.removeAttribute("href");
-  openEmbedIdBtn.removeAttribute("href");
+    // Ensure slug uniqueness (with retry mechanism)
+    $checkStmt = $pdo->prepare("SELECT id FROM pieces WHERE slug = :slug LIMIT 1");
+    for ($i = 0; $i < SLUG_RETRY_ATTEMPTS; $i++) {
+      $checkStmt->execute([":slug" => $slug]);
+      if (!$checkStmt->fetch()) break;
+      $slug = generate_slug();
+    }
+    $checkStmt->execute([":slug" => $slug]);
+    if ($checkStmt->fetch()) {
+      Logger::warning('slug_conflict', ['slug' => $slug, 'ip' => $ip]);
+      respond(409, ["error" => "Slug already exists. Please try again or choose a different slug."]);
+    }
 
-  const slugRaw = getVal("slug");
-  const slug = normalizeSlug(slugRaw);
+    $json = json_encode($config, JSON_UNESCAPED_SLASHES);
+    if ($json === false) throw new Exception("Config encode failed");
 
-  const bg = getVal("bgColor");
-  if (!isHexColor(bg)) return setMsg("Background color must be a valid hex color.", "warning");
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
 
-  const bgImageUrl = getVal("bgImageUrl");
-  const bgErr = validateImageUrl(bgImageUrl);
-  if (bgErr) return setMsg(`Background image URL: ${bgErr}`, "warning");
+    try {
+      if ($driver === "sqlite") {
+        $stmt = $pdo->prepare("
+          INSERT INTO pieces (created_at, slug, visibility, admin_key, config_json)
+          VALUES (:created_at, :slug, :visibility, :admin_key, :config_json)
+        ");
+        $stmt->execute([
+          ":created_at" => gmdate("c"),
+          ":slug" => $slug,
+          ":visibility" => $visibility,
+          ":admin_key" => $adminKey,
+          ":config_json" => $json
+        ]);
+      } else {
+        $stmt = $pdo->prepare("
+          INSERT INTO pieces (slug, visibility, admin_key, config_json)
+          VALUES (:slug, :visibility, :admin_key, :config_json)
+        ");
+        $stmt->execute([
+          ":slug" => $slug,
+          ":visibility" => $visibility,
+          ":admin_key" => $adminKey,
+          ":config_json" => $json
+        ]);
+      }
 
-  let total = 0;
-  const shapes = SHAPES.map((s) => {
-    const count = Math.max(0, Math.min(10, getInt(s.countId)));
-    const size = Math.max(0.1, Math.min(10, getFloat(s.sizeId)));
-    const baseColor = getVal(s.colorId);
-    const textureUrl = getVal(s.texId);
+      $pieceId = (int)$pdo->lastInsertId();
 
-    total += count;
+      Logger::audit('piece_created', [
+        'id' => $pieceId,
+        'slug' => $slug,
+        'visibility' => $visibility,
+        'ip' => $ip
+      ]);
 
-    return {
-      type: s.type,
-      count,
-      size,
-      palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
-      textureUrl: textureUrl || ""
-    };
-  });
-
-  if (total <= 0) return setMsg("Set at least one shape count above 0.", "warning");
-  if (total > 40) return setMsg("Total instances across all shapes must be 40 or less.", "danger");
-
-  for (const s of shapes) {
-    if (s.textureUrl) {
-      const err = validateImageUrl(s.textureUrl);
-      if (err) return setMsg(`${s.type} texture URL: ${err}`, "warning");
+      respond(200, [
+        "id" => $pieceId,
+        "slug" => $slug,
+        "visibility" => $visibility,
+        "adminKey" => $adminKey
+      ]);
+    } catch (PDOException $e) {
+      if ($e->getCode() === '23000') {
+        // Duplicate key error
+        Logger::warning('duplicate_key_error', ['slug' => $slug, 'error' => $e->getMessage()]);
+        respond(409, ["error" => "Duplicate entry. Please try again."]);
+      }
+      throw $e;
     }
   }
 
-  const payload = {
-    slug: slug || "",
-    visibility: "public",
-    config: {
-      version: 2,
-      bg,
-      bgImageUrl: bgImageUrl || "",
-      cameraZ: 10,
-      rotationSpeed: 0.01,
-      shapes
-    }
-  };
+  // GET /api/pieces/{ref}
+  if ($method === "GET" && count($segments) === 3) {
+    $ref = (string)$segments[2];
 
-  generateBtn.disabled = true;
-  setMsg("Creating…", "warning");
-
-  try {
-    const res = await fetch("/api/pieces", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      setMsg(data.error || `Create failed (${res.status})`, "danger");
-      return;
+    if (is_numeric_id($ref)) {
+      $stmt = $pdo->prepare("SELECT id, slug, visibility, config_json FROM pieces WHERE id = :id LIMIT 1");
+      $stmt->execute([":id" => (int)$ref]);
+    } else {
+      $stmt = $pdo->prepare("SELECT id, slug, visibility, config_json FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt->execute([":slug" => $ref]);
     }
 
-    setMsg("Created successfully.", "success");
-    resultPanel.classList.remove("d-none");
+    $row = $stmt->fetch();
+    if (!$row) respond(404, ["error" => "Not found"]);
 
-    renderOutput({
-      id: data.id,
-      slug: data.slug,
-      adminKey: data.adminKey
-    });
-  } catch (err) {
-    setMsg(err?.message || "Create failed", "danger");
-  } finally {
-    generateBtn.disabled = false;
+    $visibility = (string)$row["visibility"];
+    $configJson = (string)$row["config_json"];
+
+    // Add caching headers for public pieces
+    if ($visibility === "public") {
+      $etag = md5($configJson);
+      header("Cache-Control: public, max-age=3600");
+      header("ETag: \"$etag\"");
+
+      // Check if client has cached version
+      $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
+      if ($clientEtag === "\"$etag\"") {
+        http_response_code(304);
+        exit;
+      }
+    } else {
+      header("Cache-Control: private, no-cache");
+    }
+
+    respond(200, [
+      "id" => (int)$row["id"],
+      "slug" => (string)$row["slug"],
+      "visibility" => $visibility,
+      "config" => json_decode($configJson, true)
+    ]);
   }
-});
+
+  // PATCH /api/pieces/{ref}
+  if ($method === "PATCH" && count($segments) === 3) {
+    $ref = (string)$segments[2];
+    $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
+    if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
+
+    $body = json_in();
+    $visibility = validate_visibility((string)($body["visibility"] ?? ""));
+
+    if (is_numeric_id($ref)) {
+      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE id = :id LIMIT 1");
+      $stmt->execute([":id" => (int)$ref]);
+    } else {
+      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt->execute([":slug" => $ref]);
+    }
+
+    $row = $stmt->fetch();
+    if (!$row) respond(404, ["error" => "Not found"]);
+    if ((string)$row["admin_key"] !== $adminKey) {
+      Logger::warning('invalid_admin_key_patch', ['ref' => $ref, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+      respond(403, ["error" => "Invalid admin key"]);
+    }
+
+    if (is_numeric_id($ref)) {
+      $up = $pdo->prepare("UPDATE pieces SET visibility = :v WHERE id = :id");
+      $up->execute([":v" => $visibility, ":id" => (int)$ref]);
+    } else {
+      $up = $pdo->prepare("UPDATE pieces SET visibility = :v WHERE slug = :slug");
+      $up->execute([":v" => $visibility, ":slug" => $ref]);
+    }
+
+    Logger::audit('piece_visibility_updated', [
+      'ref' => $ref,
+      'visibility' => $visibility,
+      'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+
+    respond(200, ["ok" => true, "visibility" => $visibility]);
+  }
+
+  // DELETE /api/pieces/{ref}
+  if ($method === "DELETE" && count($segments) === 3) {
+    $ref = (string)$segments[2];
+    $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
+    if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
+
+    if (is_numeric_id($ref)) {
+      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE id = :id LIMIT 1");
+      $stmt->execute([":id" => (int)$ref]);
+    } else {
+      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt->execute([":slug" => $ref]);
+    }
+
+    $row = $stmt->fetch();
+    if (!$row) respond(404, ["error" => "Not found"]);
+    if ((string)$row["admin_key"] !== $adminKey) {
+      Logger::warning('invalid_admin_key_delete', ['ref' => $ref, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+      respond(403, ["error" => "Invalid admin key"]);
+    }
+
+    // Soft delete by setting visibility to 'deleted'
+    if (is_numeric_id($ref)) {
+      $del = $pdo->prepare("UPDATE pieces SET visibility = 'deleted' WHERE id = :id");
+      $del->execute([":id" => (int)$ref]);
+    } else {
+      $del = $pdo->prepare("UPDATE pieces SET visibility = 'deleted' WHERE slug = :slug");
+      $del->execute([":slug" => $ref]);
+    }
+
+    Logger::audit('piece_deleted', [
+      'ref' => $ref,
+      'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+
+    respond(200, ["ok" => true]);
+  }
+
+  respond(405, ["error" => "Method not allowed"]);
+
+} catch (PDOException $e) {
+  // Database-specific errors
+  $code = $e->getCode();
+  Logger::error('database_error', [
+    'code' => $code,
+    'message' => $e->getMessage(),
+    'file' => $e->getFile(),
+    'line' => $e->getLine()
+  ]);
+
+  if ($code === '23000') {
+    respond(409, ["error" => "Duplicate entry conflict"]);
+  }
+  respond(500, ["error" => "Database error"]);
+
+} catch (Exception $e) {
+  // Business logic / validation errors
+  Logger::warning('validation_error', [
+    'message' => $e->getMessage(),
+    'file' => $e->getFile(),
+    'line' => $e->getLine()
+  ]);
+  respond(400, ["error" => $e->getMessage()]);
+
+} catch (Throwable $e) {
+  // Unexpected errors
+  Logger::error('unexpected_error', [
+    'error' => $e->getMessage(),
+    'trace' => $e->getTraceAsString(),
+    'file' => $e->getFile(),
+    'line' => $e->getLine()
+  ]);
+  respond(500, ["error" => "Internal server error"]);
+}
