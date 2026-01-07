@@ -530,7 +530,18 @@ if (!form) {
       }
 
       if (!res.ok) {
-        setMsg(data.error || `Create failed (${res.status})`, "danger");
+        // Special handling for slug conflicts (409)
+        if (res.status === 409 && data.error && data.error.includes("Slug")) {
+          setMsg(`⚠️ ${data.error} Your form data has been preserved - just change the slug above and try again.`, "warning");
+          // Scroll to slug field and focus it
+          if (slugEl) {
+            slugEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            slugEl.focus();
+            slugEl.select();  // Select text for easy replacement
+          }
+        } else {
+          setMsg(data.error || `Create failed (${res.status})`, "danger");
+        }
         return;
       }
 

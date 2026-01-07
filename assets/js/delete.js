@@ -78,5 +78,5 @@ form.addEventListener("submit", async (e) => {
   }
 
   lookupPanel.classList.add("d-none");
-  setMsg("Deleted permanently. This piece will now return Not Found in the viewer.", "success");
+  setMsg("✓ Piece permanently deleted. All data has been removed from the database. The slug is now available for reuse.", "success");
 });
