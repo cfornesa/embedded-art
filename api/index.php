@@ -263,11 +263,12 @@ try {
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
+    // Fetch piece details for audit log before deletion
     if (is_numeric_id($ref)) {
-      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE id = :id LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility FROM pieces WHERE id = :id LIMIT 1");
       $stmt->execute([":id" => (int)$ref]);
     } else {
-      $stmt = $pdo->prepare("SELECT admin_key FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility FROM pieces WHERE slug = :slug LIMIT 1");
       $stmt->execute([":slug" => $ref]);
     }
 
@@ -278,21 +279,25 @@ try {
       respond(403, ["error" => "Invalid admin key"]);
     }
 
-    // Soft delete by setting visibility to 'deleted'
+    // Hard delete - permanently remove from database
     if (is_numeric_id($ref)) {
-      $del = $pdo->prepare("UPDATE pieces SET visibility = 'deleted' WHERE id = :id");
+      $del = $pdo->prepare("DELETE FROM pieces WHERE id = :id");
       $del->execute([":id" => (int)$ref]);
     } else {
-      $del = $pdo->prepare("UPDATE pieces SET visibility = 'deleted' WHERE slug = :slug");
+      $del = $pdo->prepare("DELETE FROM pieces WHERE slug = :slug");
       $del->execute([":slug" => $ref]);
     }
 
     Logger::audit('piece_deleted', [
+      'id' => (int)$row['id'],
+      'slug' => (string)$row['slug'],
       'ref' => $ref,
-      'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+      'visibility' => (string)$row['visibility'],
+      'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
+      'permanent' => true
     ]);
 
-    respond(200, ["ok" => true]);
+    respond(200, ["ok" => true, "deleted" => true]);
   }
 
   respond(405, ["error" => "Method not allowed"]);
