@@ -97,10 +97,18 @@ function ensure_mysql_schema(PDO $pdo): void {
   ");
 
   // Add email column if it doesn't exist (for existing databases)
-  $pdo->exec("
-    ALTER TABLE pieces
-    ADD COLUMN IF NOT EXISTS email VARCHAR(255) NOT NULL DEFAULT ''
-  ");
+  // MySQL doesn't support IF NOT EXISTS for ADD COLUMN in older versions
+  try {
+    $cols = $pdo->query("SHOW COLUMNS FROM pieces LIKE 'email'")->fetchAll();
+    if (empty($cols)) {
+      $pdo->exec("ALTER TABLE pieces ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''");
+    }
+  } catch (PDOException $e) {
+    // Ignore error if column already exists
+    if (strpos($e->getMessage(), 'Duplicate column') === false) {
+      throw $e;
+    }
+  }
 }
 
 /**
