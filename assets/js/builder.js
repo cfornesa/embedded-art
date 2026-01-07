@@ -31,6 +31,7 @@ const resetBtn = $("#resetBtn");
 const slugEl = $("#slug");
 const bgColorEl = $("#bgColor");
 const bgImageUrlEl = $("#bgImageUrl");
+const emailEl = $("#email");
 const totalBadge = $("#totalBadge");
 
 // Output fields
@@ -403,6 +404,7 @@ resetBtn?.addEventListener("click", () => {
 
   if (bgImageUrlEl) bgImageUrlEl.value = "";
   if (slugEl) slugEl.value = "";
+  if (emailEl) emailEl.value = "";
 
   // Clear slug availability feedback
   const slugFeedback = $("#slugFeedback");
@@ -563,6 +565,27 @@ if (!form) {
       return;
     }
 
+    // email (required)
+    const email = getVal("email");
+    if (!email || email.length === 0) {
+      setMsg("⚠️ Email address is required.", "warning");
+      if (emailEl) {
+        emailEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emailEl.focus();
+      }
+      return;
+    }
+    // Basic email validation (browser already validates via type="email", but double-check)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setMsg("⚠️ Please enter a valid email address.", "warning");
+      if (emailEl) {
+        emailEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        emailEl.focus();
+      }
+      return;
+    }
+
     // global bg
     const bg = getVal("bgColor");
     if (!isHexColor(bg)) return setMsg("Background color must be a valid hex color.", "warning");
@@ -617,6 +640,7 @@ if (!form) {
 
     const payload = {
       slug: slugNormalized || "", // user-controlled (optional)
+      email: email, // required
       visibility: "public",
       config: {
         version: 2,
