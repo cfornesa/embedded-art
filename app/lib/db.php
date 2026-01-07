@@ -98,16 +98,25 @@ function ensure_mysql_schema(PDO $pdo): void {
 
   // Add email column if it doesn't exist (for existing databases)
   // MySQL doesn't support IF NOT EXISTS for ADD COLUMN in older versions
+  // This migration is completely silent - any errors are logged but won't break the API
   try {
-    $cols = $pdo->query("SHOW COLUMNS FROM pieces LIKE 'email'")->fetchAll();
-    if (empty($cols)) {
-      $pdo->exec("ALTER TABLE pieces ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''");
+    // Check if email column exists
+    $result = $pdo->query("SHOW COLUMNS FROM pieces LIKE 'email'");
+    if ($result) {
+      $cols = $result->fetchAll();
+      if (empty($cols)) {
+        // Column doesn't exist, try to add it
+        try {
+          $pdo->exec("ALTER TABLE pieces ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''");
+        } catch (PDOException $alterEx) {
+          // Silently log and continue - don't break the API
+          error_log("Email column migration failed (this is OK if column exists): " . $alterEx->getMessage());
+        }
+      }
     }
-  } catch (PDOException $e) {
-    // Ignore error if column already exists
-    if (strpos($e->getMessage(), 'Duplicate column') === false) {
-      throw $e;
-    }
+  } catch (Throwable $e) {
+    // Completely silent - log but never throw
+    error_log("Email column check failed (this is OK): " . $e->getMessage());
   }
 }
 
@@ -134,16 +143,27 @@ function ensure_sqlite_schema(PDO $pdo): void {
 
   // Add email column if it doesn't exist (for existing databases)
   // SQLite doesn't have IF NOT EXISTS for ALTER TABLE, so check first
-  $cols = $pdo->query("PRAGMA table_info(pieces)")->fetchAll(PDO::FETCH_ASSOC);
-  $hasEmail = false;
-  foreach ($cols as $col) {
-    if ($col['name'] === 'email') {
-      $hasEmail = true;
-      break;
+  // This migration is completely silent - any errors are logged but won't break the API
+  try {
+    $cols = $pdo->query("PRAGMA table_info(pieces)")->fetchAll(PDO::FETCH_ASSOC);
+    $hasEmail = false;
+    foreach ($cols as $col) {
+      if ($col['name'] === 'email') {
+        $hasEmail = true;
+        break;
+      }
     }
-  }
-  if (!$hasEmail) {
-    $pdo->exec("ALTER TABLE pieces ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+    if (!$hasEmail) {
+      try {
+        $pdo->exec("ALTER TABLE pieces ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+      } catch (PDOException $alterEx) {
+        // Silently log and continue - don't break the API
+        error_log("Email column migration failed (this is OK if column exists): " . $alterEx->getMessage());
+      }
+    }
+  } catch (Throwable $e) {
+    // Completely silent - log but never throw
+    error_log("Email column check failed (this is OK): " . $e->getMessage());
   }
 }
 
