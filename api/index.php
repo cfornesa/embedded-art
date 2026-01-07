@@ -302,7 +302,8 @@ try {
     }
 
     try {
-      $newConfig = validate_config($body["config"]);
+      validate_config($body["config"]); // Validates and throws on error
+      $newConfig = $body["config"]; // Use validated config
       $configJson = json_encode($newConfig, JSON_THROW_ON_ERROR);
     } catch (Exception $e) {
       respond(400, ["error" => "Invalid config: " . $e->getMessage()]);
