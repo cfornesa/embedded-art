@@ -270,6 +270,85 @@ try {
     respond(200, ["ok" => true, "visibility" => $visibility]);
   }
 
+  // PUT /api/pieces/{ref}
+  if ($method === "PUT" && count($segments) === 3) {
+    $ref = (string)$segments[2];
+    $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
+    if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
+
+    // Fetch existing piece to verify ownership and get current data
+    if (is_numeric_id($ref)) {
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config, created_at FROM pieces WHERE id = :id LIMIT 1");
+      $stmt->execute([":id" => (int)$ref]);
+    } else {
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config, created_at FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt->execute([":slug" => $ref]);
+    }
+
+    $row = $stmt->fetch();
+    if (!$row) respond(404, ["error" => "Not found"]);
+    if ((string)$row["admin_key"] !== $adminKey) {
+      Logger::warning('invalid_admin_key_update', ['ref' => $ref, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
+      respond(403, ["error" => "Invalid admin key"]);
+    }
+
+    // Parse request body
+    $body = json_decode(file_get_contents("php://input"), true);
+    if (!is_array($body)) respond(400, ["error" => "Invalid JSON body"]);
+
+    // Validate and update config (required)
+    if (!isset($body["config"]) || !is_array($body["config"])) {
+      respond(400, ["error" => "Missing or invalid config"]);
+    }
+
+    try {
+      $newConfig = validate_config($body["config"]);
+      $configJson = json_encode($newConfig, JSON_THROW_ON_ERROR);
+    } catch (Exception $e) {
+      respond(400, ["error" => "Invalid config: " . $e->getMessage()]);
+    }
+
+    // Optional visibility update
+    $newVisibility = isset($body["visibility"])
+      ? validate_visibility((string)$body["visibility"])
+      : (string)$row["visibility"];
+
+    // Update the piece
+    if (is_numeric_id($ref)) {
+      $update = $pdo->prepare("UPDATE pieces SET config = :config, visibility = :visibility WHERE id = :id");
+      $update->execute([
+        ":config" => $configJson,
+        ":visibility" => $newVisibility,
+        ":id" => (int)$ref
+      ]);
+    } else {
+      $update = $pdo->prepare("UPDATE pieces SET config = :config, visibility = :visibility WHERE slug = :slug");
+      $update->execute([
+        ":config" => $configJson,
+        ":visibility" => $newVisibility,
+        ":slug" => $ref
+      ]);
+    }
+
+    Logger::audit('piece_updated', [
+      'id' => (int)$row['id'],
+      'slug' => (string)$row['slug'],
+      'ref' => $ref,
+      'visibility' => $newVisibility,
+      'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+    ]);
+
+    // Return updated piece data (without admin_key for security)
+    respond(200, [
+      "ok" => true,
+      "id" => (int)$row["id"],
+      "slug" => (string)$row["slug"],
+      "visibility" => $newVisibility,
+      "config" => $newConfig,
+      "created_at" => (string)$row["created_at"]
+    ]);
+  }
+
   // DELETE /api/pieces/{ref}
   if ($method === "DELETE" && count($segments) === 3) {
     $ref = (string)$segments[2];
