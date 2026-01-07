@@ -86,12 +86,20 @@ function ensure_mysql_schema(PDO $pdo): void {
       slug VARCHAR(60) NOT NULL,
       visibility VARCHAR(12) NOT NULL DEFAULT 'public',
       admin_key VARCHAR(64) NOT NULL,
+      email VARCHAR(255) NOT NULL,
       config_json LONGTEXT NOT NULL,
       PRIMARY KEY (id),
       UNIQUE KEY uniq_slug (slug),
       INDEX idx_visibility (visibility),
-      INDEX idx_created_at (created_at)
+      INDEX idx_created_at (created_at),
+      INDEX idx_email (email)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+  ");
+
+  // Add email column if it doesn't exist (for existing databases)
+  $pdo->exec("
+    ALTER TABLE pieces
+    ADD COLUMN IF NOT EXISTS email VARCHAR(255) NOT NULL DEFAULT ''
   ");
 }
 
@@ -106,6 +114,7 @@ function ensure_sqlite_schema(PDO $pdo): void {
       slug TEXT NOT NULL UNIQUE,
       visibility TEXT NOT NULL DEFAULT 'public',
       admin_key TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
       config_json TEXT NOT NULL
     )
   ");
@@ -113,6 +122,21 @@ function ensure_sqlite_schema(PDO $pdo): void {
   // Add performance indexes
   $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visibility ON pieces(visibility)");
   $pdo->exec("CREATE INDEX IF NOT EXISTS idx_created_at ON pieces(created_at)");
+  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_email ON pieces(email)");
+
+  // Add email column if it doesn't exist (for existing databases)
+  // SQLite doesn't have IF NOT EXISTS for ALTER TABLE, so check first
+  $cols = $pdo->query("PRAGMA table_info(pieces)")->fetchAll(PDO::FETCH_ASSOC);
+  $hasEmail = false;
+  foreach ($cols as $col) {
+    if ($col['name'] === 'email') {
+      $hasEmail = true;
+      break;
+    }
+  }
+  if (!$hasEmail) {
+    $pdo->exec("ALTER TABLE pieces ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+  }
 }
 
 /**

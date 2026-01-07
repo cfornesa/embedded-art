@@ -42,6 +42,68 @@ function generate_admin_key(): string {
   return bin2hex(random_bytes(ADMIN_KEY_LENGTH));
 }
 
+function validate_email(string $email): string {
+  $email = trim($email);
+  if (empty($email)) {
+    throw new Exception("Email is required");
+  }
+  if (strlen($email) > 255) {
+    throw new Exception("Email is too long (max 255 characters)");
+  }
+  if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    throw new Exception("Invalid email format");
+  }
+  return strtolower($email);
+}
+
+/**
+ * Send piece creation confirmation email with admin key.
+ *
+ * PRODUCTION NOTE: PHP's mail() function requires a configured mail server.
+ * On shared hosting (Hostinger), this typically works out of the box.
+ * On Replit or other platforms, you may need to:
+ * 1. Use an SMTP library (PHPMailer, SwiftMailer)
+ * 2. Use a transactional email service (SendGrid, Mailgun, AWS SES)
+ * 3. Configure environment variables for SMTP settings
+ *
+ * For now, this uses native mail() with proper headers.
+ */
+function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSlug, string $adminKey): bool {
+  $from = "contact@augmenthumankind.com";
+  $subject = "Your 3D Art Piece Details";
+
+  // Build email body
+  $body = "Hello,\n\n";
+  $body .= "Thank you for creating a 3D art piece! Here are your piece details:\n\n";
+  $body .= "Piece ID: {$pieceId}\n";
+  $body .= "Piece Slug: {$pieceSlug}\n";
+  $body .= "Piece Admin Key: {$adminKey}\n\n";
+  $body .= "IMPORTANT: Save this admin key! You will need it to edit or delete your piece.\n\n";
+  $body .= "You can:\n";
+  $body .= "- View your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/view.html?id={$pieceSlug}\n";
+  $body .= "- Edit your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/edit.html\n";
+  $body .= "- Delete your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/delete.html\n\n";
+  $body .= "Best regards,\n";
+  $body .= "Augment Humankind";
+
+  // Set headers
+  $headers = "From: {$from}\r\n";
+  $headers .= "Reply-To: {$from}\r\n";
+  $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+  $headers .= "MIME-Version: 1.0\r\n";
+  $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+  // Attempt to send email
+  try {
+    $sent = mail($toEmail, $subject, $body, $headers);
+    return (bool)$sent;
+  } catch (Throwable $e) {
+    // Log error but don't fail the request
+    error_log("Email send failed: " . $e->getMessage());
+    return false;
+  }
+}
+
 function is_hex_color(string $c): bool {
   return (bool)preg_match('/^#[0-9a-fA-F]{6}$/', $c);
 }

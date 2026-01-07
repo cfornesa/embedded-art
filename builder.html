@@ -257,6 +257,15 @@
             <input type="color" class="form-control form-control-color" id="bgColor" value="#000000">
           </div>
 
+          <!-- Email (required) -->
+          <div class="col-12">
+            <label class="form-label" for="email">Email address <span class="text-danger">*</span></label>
+            <input type="email" class="form-control" id="email" placeholder="your.email@example.com" required>
+            <div class="form-text">
+              Required. Your piece details and admin key will be sent to this email. Email is not unique - you can create multiple pieces with the same email.
+            </div>
+          </div>
+
           <!-- Submit -->
           <div class="col-12 d-flex gap-2">
             <button class="btn btn-primary" type="submit" id="generateBtn">Generate</button>
