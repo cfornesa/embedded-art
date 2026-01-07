@@ -103,19 +103,32 @@ try {
     $requestedSlug = normalize_slug((string)($body["slug"] ?? ""));
     $adminKey = generate_admin_key();
 
-    $slug = $requestedSlug !== "" ? $requestedSlug : generate_slug();
+    $userProvidedSlug = $requestedSlug !== "";
+    $slug = $userProvidedSlug ? $requestedSlug : generate_slug();
 
-    // Ensure slug uniqueness (with retry mechanism)
+    // Check slug uniqueness
     $checkStmt = $pdo->prepare("SELECT id FROM pieces WHERE slug = :slug LIMIT 1");
-    for ($i = 0; $i < SLUG_RETRY_ATTEMPTS; $i++) {
+
+    if ($userProvidedSlug) {
+      // User provided a custom slug - fail immediately if taken
       $checkStmt->execute([":slug" => $slug]);
-      if (!$checkStmt->fetch()) break;
-      $slug = generate_slug();
-    }
-    $checkStmt->execute([":slug" => $slug]);
-    if ($checkStmt->fetch()) {
-      Logger::warning('slug_conflict', ['slug' => $slug, 'ip' => $ip]);
-      respond(409, ["error" => "Slug already exists. Please try again or choose a different slug."]);
+      if ($checkStmt->fetch()) {
+        Logger::warning('slug_conflict_user_provided', ['slug' => $slug, 'ip' => $ip]);
+        respond(409, ["error" => "Slug '$slug' is already taken. Please choose a different slug."]);
+      }
+    } else {
+      // Auto-generated slug - retry if conflict (very unlikely)
+      for ($i = 0; $i < SLUG_RETRY_ATTEMPTS; $i++) {
+        $checkStmt->execute([":slug" => $slug]);
+        if (!$checkStmt->fetch()) break;
+        $slug = generate_slug();
+      }
+      // Final check
+      $checkStmt->execute([":slug" => $slug]);
+      if ($checkStmt->fetch()) {
+        Logger::error('slug_generation_exhausted', ['attempts' => SLUG_RETRY_ATTEMPTS, 'ip' => $ip]);
+        respond(500, ["error" => "Unable to generate unique slug. Please try again."]);
+      }
     }
 
     $json = json_encode($config, JSON_UNESCAPED_SLASHES);

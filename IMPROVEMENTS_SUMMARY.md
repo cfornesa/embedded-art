@@ -2,13 +2,96 @@
 
 **Date:** 2026-01-07
 **Branch:** `claude/code-quality-review-wGoTS`
-**Commits:** 2 (README + Improvements)
+**Commits:** 6 (README + Improvements + Hard Delete + Slug Bug Fix)
 
 ---
 
 ## ✅ Implementation Status: COMPLETE
 
 All 10 recommended improvements have been successfully implemented, tested, and committed to the repository.
+
+---
+
+## 🐛 CRITICAL BUG FIX (2026-01-07 - Latest Update)
+
+### Issue Reported
+User entered custom slug "neon-1" but the system created "piece-92039b" instead - a silent, unexpected slug replacement.
+
+### Root Cause
+The retry loop in `api/index.php` was replacing **all** slugs (including user-provided ones) with auto-generated slugs when conflicts were detected. No distinction was made between user-provided slugs and auto-generated slugs.
+
+### Solution Implemented (Commit d692d37)
+
+#### Backend Fix (api/index.php:102-132)
+- ✅ Added `$userProvidedSlug` flag to distinguish custom vs auto-generated slugs
+- ✅ User-provided slugs now **fail immediately** with 409 error if taken
+- ✅ Only auto-generated slugs retry with new random values
+- ✅ Error message includes specific slug name: `"Slug 'neon-1' is already taken"`
+
+#### Frontend Enhancement (assets/js/builder.js:279-382 + 548-557)
+- ✅ **Real-time slug availability checking** with 500ms debounce
+- ✅ Inline feedback display below slug input
+  - Green: "✓ Available"
+  - Red: "✗ Already taken - please choose a different slug"
+  - Gray: "⟳ Checking availability..." (during check)
+- ✅ **Prevents form submission** when user-provided slug is taken
+- ✅ Auto-focuses slug field with text selected when conflict detected
+- ✅ Network-resilient: allows submission if availability check fails
+- ✅ Clears feedback on form reset
+
+### User Experience (Before → After)
+
+**Before:**
+```
+User types: "neon-1"
+User clicks: Generate
+System creates: "piece-92039b" ❌ (silent change!)
+User confused: "Where did 'neon-1' go?"
+```
+
+**After:**
+```
+User types: "neon-1"
+System shows: "✗ Already taken - please choose a different slug" (inline, red)
+User clicks: Generate
+System blocks: "⚠️ The slug you entered is already taken. Please choose a different slug or leave it blank to auto-generate."
+User changes: "neon-2"
+System shows: "✓ Available" (inline, green)
+User clicks: Generate
+System creates: "neon-2" ✅ (exactly as requested!)
+```
+
+### Technical Details
+
+**Debounced Checking:**
+- Waits 500ms after user stops typing before checking
+- Prevents excessive API calls during typing
+- Immediate check on blur (when user leaves field)
+
+**Caching:**
+- Tracks `lastCheckedSlug` to prevent duplicate checks
+- Resets on form reset
+
+**Error Handling:**
+- Network errors: Shows warning but allows submission
+- Server errors: Shows warning but allows submission
+- 404 response: Slug is available (piece not found)
+- 200 response: Slug is taken (piece exists)
+
+### Files Changed
+- `api/index.php`: 31 lines changed (slug handling logic)
+- `assets/js/builder.js`: 112 lines added (real-time checking + validation)
+
+### Testing Recommendations
+1. Try entering an existing slug (e.g., "neon-1")
+   - Should show "✗ Already taken" inline
+   - Should prevent submission with clear error
+2. Try entering a new slug (e.g., "test-" + random)
+   - Should show "✓ Available" inline
+   - Should allow submission
+3. Leave slug blank
+   - Should auto-generate unique slug
+   - Should never conflict
 
 ---
 
