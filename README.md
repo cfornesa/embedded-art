@@ -377,7 +377,9 @@ X-Admin-Key: <your-admin-key>
 ---
 
 #### `DELETE /api/pieces/{id|slug}`
-Soft-delete a piece (sets visibility to "deleted").
+**Permanently delete a piece from the database (hard delete).**
+
+⚠️ **This action is irreversible** - the piece and all its data are completely removed.
 
 **Headers:**
 ```
@@ -387,9 +389,16 @@ X-Admin-Key: <your-admin-key>
 **Response (200 OK):**
 ```json
 {
-  "ok": true
+  "ok": true,
+  "deleted": true
 }
 ```
+
+**What gets deleted:**
+- All piece data removed from database
+- Slug becomes immediately available for reuse
+- Viewer/embed URLs return 404
+- No recovery possible
 
 **Errors:**
 - `401 Unauthorized`: Missing admin key
@@ -496,7 +505,7 @@ CREATE INDEX idx_created_at ON pieces(created_at);
 | `id` | INT/BIGINT | Auto-incrementing primary key |
 | `created_at` | TIMESTAMP/TEXT | Piece creation timestamp (UTC) |
 | `slug` | VARCHAR(60)/TEXT | Human-readable URL identifier (unique) |
-| `visibility` | VARCHAR(12)/TEXT | `public`, `unlisted`, or `deleted` |
+| `visibility` | VARCHAR(12)/TEXT | `public` or `unlisted` (pieces are deleted, not marked) |
 | `admin_key` | VARCHAR(64)/TEXT | 64-char hex key for auth (SHA-256 strength) |
 | `config_json` | LONGTEXT/TEXT | Full piece configuration as JSON |
 
@@ -860,17 +869,6 @@ gzip backup_${DATE}.sql
 **Cron Schedule:**
 ```cron
 0 2 * * * /path/to/backup.sh
-```
-
-### Cleanup Old Deleted Pieces
-
-**Warning:** This permanently removes pieces marked `deleted` for >30 days
-
-```sql
--- Run monthly
-DELETE FROM pieces
-WHERE visibility = 'deleted'
-  AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 ```
 
 ### Database Optimization

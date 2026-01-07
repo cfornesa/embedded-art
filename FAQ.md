@@ -2,71 +2,74 @@
 
 ## 1. Does DELETE permanently remove pieces from the database?
 
-### Answer: No - It's a Soft Delete
+### Answer: Yes - It's a Hard Delete (Permanent)
 
-**The DELETE endpoint does NOT permanently remove data.** Instead, it sets the piece's visibility to `'deleted'`.
+**The DELETE endpoint PERMANENTLY removes the piece from the database.** This gives users full ownership and control over their data.
 
 ### What Happens When You Delete:
 
 ```php
-// api/index.php:283-284
-$del = $pdo->prepare("UPDATE pieces SET visibility = 'deleted' WHERE id = :id");
-$del->execute([":id" => (int)$ref]);
+// api/index.php:283-289
+// Hard delete - permanently remove from database
+if (is_numeric_id($ref)) {
+  $del = $pdo->prepare("DELETE FROM pieces WHERE id = :id");
+  $del->execute([":id" => (int)$ref]);
+}
 ```
 
 ### Database State:
 
 | Field | Before Delete | After Delete |
 |-------|--------------|--------------|
-| `id` | 123 | 123 (unchanged) |
-| `slug` | "my-piece" | "my-piece" (unchanged) |
-| `visibility` | "public" | **"deleted"** |
-| `config_json` | {...} | {...} (unchanged) |
-| `admin_key` | abc123... | abc123... (unchanged) |
+| `id` | 123 | **REMOVED** |
+| `slug` | "my-piece" | **REMOVED** |
+| `visibility` | "public" | **REMOVED** |
+| `config_json` | {...} | **REMOVED** |
+| `admin_key` | abc123... | **REMOVED** |
+
+**The entire record is gone from the database.**
 
 ### User Experience:
 
-1. **Viewer/Embed** - Shows "This piece was deleted" message
-2. **Slug** - Becomes available for reuse (you can create a new piece with same slug)
-3. **Database** - Record stays in database for recovery
-4. **API** - GET request returns 404 or shows deleted status
+1. **Viewer/Embed** - Shows "Error loading piece" / "Not found" (404)
+2. **Slug** - Immediately available for reuse by anyone
+3. **Database** - Record completely removed
+4. **API** - GET request returns 404 "Not found"
+5. **Recovery** - **NOT POSSIBLE** (data is gone)
 
-### Benefits of Soft Delete:
+### Benefits of Hard Delete:
 
-✅ **Data Recovery** - Can restore accidentally deleted pieces
-✅ **Audit Trail** - Know what was deleted and when
-✅ **Slug Reuse** - Deleted slugs are freed up for new pieces
-✅ **Safety** - No accidental data loss
+✅ **User Ownership** - Users truly control their data
+✅ **Privacy** - No lingering data after deletion
+✅ **Slug Liberation** - IDs and slugs freed up immediately
+✅ **GDPR Compliance** - Right to be forgotten
+✅ **Clean Database** - No "deleted" clutter
 
-### How to Permanently Delete (Optional):
+### Security Features:
 
-If you want to hard-delete old pieces, add this maintenance script:
+1. **Admin Key Required** - Only the creator can delete (no one else has the key)
+2. **Confirmation Required** - UI asks user to type "DELETE" to confirm
+3. **Audit Logging** - Deletion is logged with full details:
+   ```json
+   {
+     "level": "AUDIT",
+     "action": "piece_deleted",
+     "context": {
+       "id": 123,
+       "slug": "my-piece",
+       "permanent": true,
+       "ip": "123.45.67.89"
+     }
+   }
+   ```
+4. **No Accidental Deletes** - UI has clear warnings
 
-```sql
--- Run monthly via cron
-DELETE FROM pieces
-WHERE visibility = 'deleted'
-  AND created_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
-```
+### Important Warnings:
 
-Or create a cleanup script:
-
-```php
-// cleanup_old_pieces.php
-require_once 'app/lib/db.php';
-
-$pdo = pdo_conn();
-$cutoff = date('c', strtotime('-30 days'));
-
-$stmt = $pdo->prepare("
-  DELETE FROM pieces
-  WHERE visibility = 'deleted'
-    AND created_at < :cutoff
-");
-$stmt->execute([':cutoff' => $cutoff]);
-
-echo "Deleted " . $stmt->rowCount() . " old pieces\n";
-```
+⚠️ **Deletion is PERMANENT** - No undo, no recovery
+⚠️ **Admin Key Required** - Save it when creating the piece
+⚠️ **Embed URLs Break** - All embeds will show "Not found"
+⚠️ **Slug Can Be Reused** - Someone else can take your old slug
 
 ---
 
