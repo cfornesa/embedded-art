@@ -1,0 +1,252 @@
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+const wrap = document.querySelector("#wrap");
+const msg = document.querySelector("#msg");
+
+function showMsg(text) {
+  msg.style.display = "block";
+  msg.textContent = text;
+}
+
+showMsg("Loading viewer…");
+
+const params = new URLSearchParams(location.search);
+const ref = params.get("id"); // numeric id OR slug
+if (!ref) {
+  showMsg("Missing ?id=");
+  throw new Error("Missing id");
+}
+
+/**
+ * Try both API styles:
+ *  - /api/pieces/{ref}           (pretty route)
+ *  - /api/index.php/pieces/{ref} (works without rewrites)
+ */
+async function fetchPiece(ref) {
+  const candidates = [
+    `/api/pieces/${encodeURIComponent(ref)}`,
+    `/api/index.php/pieces/${encodeURIComponent(ref)}`
+  ];
+
+  let lastErr = null;
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, { cache: "no-store" });
+
+      // If it’s not OK, read text for debugging but keep it short
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ""}`.trim());
+      }
+
+      const ct = (res.headers.get("content-type") || "").toLowerCase();
+      if (!ct.includes("application/json")) {
+        // Not JSON -> avoid res.json() crash, show a useful snippet
+        const txt = await res.text().catch(() => "");
+        const snippet = (txt || "").slice(0, 200);
+        throw new Error(
+          `API did not return JSON from ${url}.\n` +
+          `Content-Type: ${ct || "(missing)"}\n` +
+          `First bytes: ${snippet || "(empty response)"}`
+        );
+      }
+
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      // try next candidate
+    }
+  }
+
+  throw lastErr || new Error("Failed to fetch piece");
+}
+
+function makeGeometry(type, size) {
+  const s = size;
+  switch (type) {
+    case "sphere": return new THREE.SphereGeometry(s * 0.5, 24, 16);
+    case "cone": return new THREE.ConeGeometry(s * 0.5, s * 1.1, 24);
+    case "torus": return new THREE.TorusGeometry(s * 0.45, s * 0.15, 16, 40);
+    case "box":
+    default: return new THREE.BoxGeometry(s, s, s);
+  }
+}
+
+function jitterColor(baseHex) {
+  const c = new THREE.Color(baseHex || "#ffffff");
+  const hsl = {};
+  c.getHSL(hsl);
+  hsl.l = Math.min(0.85, Math.max(0.15, hsl.l + (Math.random() - 0.5) * 0.25));
+  hsl.s = Math.min(1.0, Math.max(0.2, hsl.s + (Math.random() - 0.5) * 0.2));
+  return new THREE.Color().setHSL(hsl.h, hsl.s, hsl.l);
+}
+
+function randomPos(range = 10) {
+  return (Math.random() - 0.5) * 0.4 * range;
+}
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 2000);
+camera.position.z = 10;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+wrap.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+const dir = new THREE.DirectionalLight(0xffffff, 0.8);
+dir.position.set(5, 8, 6);
+scene.add(dir);
+
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+});
+
+let meshes = [];
+let rotationSpeed = 0.01;
+
+function clear() {
+  for (const m of meshes) {
+    scene.remove(m);
+    if (m.material?.map) m.material.map.dispose();
+    m.material.dispose();
+  }
+  meshes = [];
+}
+
+async function loadTextureFromUrl(url) {
+  return new Promise((resolve, reject) => {
+    new THREE.TextureLoader().load(
+      url,
+      (t) => {
+        t.colorSpace = THREE.SRGBColorSpace;
+        t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        resolve(t);
+      },
+      undefined,
+      () => reject(new Error("Texture failed to load"))
+    );
+  });
+}
+
+async function buildFromPiece(piece) {
+  if (piece.visibility === "deleted") {
+    showMsg("This piece was deleted.");
+    renderer.setClearColor(0x111111, 1);
+    clear();
+    return;
+  }
+
+  const config = piece.config || {};
+  clear();
+
+  renderer.setClearColor(new THREE.Color(config.bg || "#000000"), 1);
+  camera.position.z = config.cameraZ || 10;
+  rotationSpeed = config.rotationSpeed ?? 0.01;
+
+  // Multi-shape support (config.shapes[])
+  if (Array.isArray(config.shapes)) {
+    for (const s of config.shapes) {
+      const type = s.type || "box";
+      const count = Number(s.count || 0) | 0;
+      if (count <= 0) continue;
+
+      const geom = makeGeometry(type, Number(s.size || 1));
+      let texture = null;
+
+      if (s.textureUrl) {
+        texture = await loadTextureFromUrl(s.textureUrl);
+      } else if (s.textureDataUrl) {
+        texture = await loadTextureFromUrl(s.textureDataUrl);
+      }
+
+      for (let i = 0; i < count; i++) {
+        const mat = new THREE.MeshStandardMaterial({
+          color: jitterColor(s.palette?.baseColor || "#ffffff"),
+          roughness: 0.7,
+          metalness: 0.1,
+          transparent: true,
+          opacity: Math.random() * 0.65 + 0.35
+        });
+
+        if (texture) {
+          mat.map = texture;
+          mat.color.set("#ffffff");
+          mat.needsUpdate = true;
+        }
+
+        const mesh = new THREE.Mesh(geom, mat);
+        mesh.position.set(randomPos(10), randomPos(10), randomPos(10));
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+        scene.add(mesh);
+        meshes.push(mesh);
+      }
+    }
+
+    showMsg(piece.slug ? `Piece: ${piece.slug}` : `Piece #${piece.id}`);
+    return;
+  }
+
+  // Legacy single-shape support
+  const geom = makeGeometry(config.shapeType, config.uniformSize || 1);
+
+  let texture = null;
+  if (config.textureUrl) {
+    texture = await loadTextureFromUrl(config.textureUrl);
+  } else if (config.textureDataUrl) {
+    texture = await loadTextureFromUrl(config.textureDataUrl);
+  }
+
+  const count = config.count || 20;
+  for (let i = 0; i < count; i++) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: jitterColor(config.palette?.baseColor || "#ffffff"),
+      roughness: 0.7,
+      metalness: 0.1,
+      transparent: true,
+      opacity: Math.random() * 0.65 + 0.35
+    });
+
+    if (texture) {
+      mat.map = texture;
+      mat.color.set("#ffffff");
+      mat.needsUpdate = true;
+    }
+
+    const mesh = new THREE.Mesh(geom, mat);
+    mesh.position.set(randomPos(10), randomPos(10), randomPos(10));
+    mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, 0);
+    scene.add(mesh);
+    meshes.push(mesh);
+  }
+
+  showMsg(piece.slug ? `Piece: ${piece.slug}` : `Piece #${piece.id}`);
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  for (const m of meshes) {
+    m.rotation.x += rotationSpeed;
+    m.rotation.y -= rotationSpeed;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+fetchPiece(ref)
+  .then((piece) => buildFromPiece(piece))
+  .catch((err) => {
+    // If this is embedded, show a clean message instead of a JSON parse crash
+    showMsg(`Error loading piece.\n\n${err?.message || String(err)}\n\nIf you see “// assets/…”, your /api route is not returning JSON. This viewer will also try /api/index.php/pieces/{id} automatically.`);
+  });
+
+animate();

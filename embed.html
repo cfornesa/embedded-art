@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embed</title>
+  <link rel="icon" href="data:,">
+  <style>
+    html, body { margin:0; height:100%; background:#0b0d10; color:#e9eef5; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    #wrap { height: 100%; }
+    #msg {
+      position: absolute;
+      left: 12px;
+      top: 12px;
+      right: 12px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid rgba(255,255,255,.12);
+      color: #e9eef5;
+      font-size: 14px;
+      line-height: 1.35;
+      display: none;
+      z-index: 10;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+
+  <script>
+    // Redirect direct visits back to builder (embed is meant for iframes).
+    // Add &standalone=1 if you want to open it directly for debugging.
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const standalone = params.get("standalone") === "1";
+      const isInIframe = window.top !== window.self;
+
+      if (!standalone && !isInIframe) {
+        location.replace("/builder.html");
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div id="msg"></div>
+  <div id="wrap"></div>
+  <script type="module" src="/assets/js/viewer.js"></script>
+</body>
+</html>
