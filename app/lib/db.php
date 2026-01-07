@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require_once __DIR__ . '/constants.php';
+
 /**
  * app/lib/db.php
  *
@@ -86,7 +88,9 @@ function ensure_mysql_schema(PDO $pdo): void {
       admin_key VARCHAR(64) NOT NULL,
       config_json LONGTEXT NOT NULL,
       PRIMARY KEY (id),
-      UNIQUE KEY uniq_slug (slug)
+      UNIQUE KEY uniq_slug (slug),
+      INDEX idx_visibility (visibility),
+      INDEX idx_created_at (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
   ");
 }
@@ -105,6 +109,10 @@ function ensure_sqlite_schema(PDO $pdo): void {
       config_json TEXT NOT NULL
     )
   ");
+
+  // Add performance indexes
+  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visibility ON pieces(visibility)");
+  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_created_at ON pieces(created_at)");
 }
 
 /**
@@ -129,7 +137,7 @@ function try_mysql(array $cfg): PDO {
       $pdo = new PDO($dsn, $user, $pass, [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_TIMEOUT => 2, // fast fail -> quick fallback
+        PDO::ATTR_TIMEOUT => DB_TIMEOUT_SECONDS, // fast fail -> quick fallback
       ]);
 
       ensure_mysql_schema($pdo);

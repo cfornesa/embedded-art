@@ -1,5 +1,7 @@
 // assets/js/builder.js
 
+import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS } from './constants.js';
+
 // -------------------------
 // Safe DOM helpers
 // -------------------------
@@ -132,14 +134,9 @@ function ensureResultUI() {
 ensureResultUI();
 
 // -------------------------
-// Shapes map (IDs must match builder.html)
+// Shapes map imported from constants.js (IDs must match builder.html)
 // -------------------------
-const SHAPES = [
-  { type: "box",    countId: "boxCount",    sizeId: "boxSize",    colorId: "boxColor",    texId: "boxTex",    countValId: "boxCountVal",    sizeValId: "boxSizeVal" },
-  { type: "sphere", countId: "sphereCount", sizeId: "sphereSize", colorId: "sphereColor", texId: "sphereTex", countValId: "sphereCountVal", sizeValId: "sphereSizeVal" },
-  { type: "cone",   countId: "coneCount",   sizeId: "coneSize",   colorId: "coneColor",   texId: "coneTex",   countValId: "coneCountVal",   sizeValId: "coneSizeVal" },
-  { type: "torus",  countId: "torusCount",  sizeId: "torusSize",  colorId: "torusColor",  texId: "torusTex",  countValId: "torusCountVal",  sizeValId: "torusSizeVal" }
-];
+// const SHAPES is now imported
 
 // -------------------------
 // Messaging
@@ -176,7 +173,7 @@ function normalizeSlug(s) {
   s = s.replace(/[^a-z0-9\-]+/g, "-");
   s = s.replace(/\-+/g, "-");
   s = s.replace(/^\-+|\-+$/g, "");
-  if (s.length > 60) s = s.slice(0, 60);
+  if (s.length > LIMITS.SLUG_MAX_LENGTH) s = s.slice(0, LIMITS.SLUG_MAX_LENGTH);
   return s;
 }
 
@@ -198,14 +195,13 @@ function validateImageUrl(url) {
     return "Invalid URL format";
   }
 
-  const ok =
-    path.endsWith(".png") ||
-    path.endsWith(".jpg") ||
-    path.endsWith(".jpeg") ||
-    path.endsWith(".webp");
+  const ok = ALLOWED_IMAGE_EXTENSIONS.some(ext => path.endsWith(ext));
 
-  if (!ok) return "URL must end in .png, .jpg, .jpeg, or .webp";
-  if (u.length > 2048) return "URL too long";
+  if (!ok) {
+    const allowed = ALLOWED_IMAGE_EXTENSIONS.join(', ');
+    return `URL must end in one of: ${allowed}`;
+  }
+  if (u.length > LIMITS.URL_MAX_LENGTH) return `URL too long (max ${LIMITS.URL_MAX_LENGTH} chars)`;
   return null;
 }
 
@@ -266,7 +262,7 @@ function updateBadges() {
 
   if (totalBadge) {
     totalBadge.textContent = String(total);
-    if (total > 40) totalBadge.classList.add("text-danger");
+    if (total > LIMITS.TOTAL_INSTANCES_MAX) totalBadge.classList.add("text-danger");
     else totalBadge.classList.remove("text-danger");
   }
 }
@@ -461,8 +457,8 @@ if (!form) {
     // shapes
     let total = 0;
     const shapes = SHAPES.map((s) => {
-      const count = Math.max(0, Math.min(10, getInt(s.countId)));
-      const size = Math.max(0.1, Math.min(10, getFloat(s.sizeId)));
+      const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
+      const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
       const baseColor = getVal(s.colorId);
       const textureUrl = getVal(s.texId);
 
@@ -491,7 +487,7 @@ if (!form) {
       }
     }
 
-    if (total > 40) return setMsg("Total instances across all shapes must be 40 or less.", "danger");
+    if (total > LIMITS.TOTAL_INSTANCES_MAX) return setMsg(`Total instances across all shapes must be ${LIMITS.TOTAL_INSTANCES_MAX} or less.`, "danger");
 
     // validate texture URLs
     for (const s of shapes) {
@@ -518,7 +514,7 @@ if (!form) {
     setMsg("Creating…", "warning");
 
     try {
-      const res = await fetch("/api/pieces", {
+      const res = await fetch(API_ENDPOINTS.PIECES, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
