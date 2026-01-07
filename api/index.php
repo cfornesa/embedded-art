@@ -99,6 +99,12 @@ try {
     $config = $body["config"];
     validate_config($config);
 
+    // Validate email (required)
+    if (!isset($body["email"]) || !is_string($body["email"])) {
+      throw new Exception("Email is required");
+    }
+    $email = validate_email((string)$body["email"]);
+
     $visibility = validate_visibility((string)($body["visibility"] ?? "public"));
     $requestedSlug = normalize_slug((string)($body["slug"] ?? ""));
     $adminKey = generate_admin_key();
@@ -139,35 +145,42 @@ try {
     try {
       if ($driver === "sqlite") {
         $stmt = $pdo->prepare("
-          INSERT INTO pieces (created_at, slug, visibility, admin_key, config_json)
-          VALUES (:created_at, :slug, :visibility, :admin_key, :config_json)
+          INSERT INTO pieces (created_at, slug, visibility, admin_key, email, config_json)
+          VALUES (:created_at, :slug, :visibility, :admin_key, :email, :config_json)
         ");
         $stmt->execute([
           ":created_at" => gmdate("c"),
           ":slug" => $slug,
           ":visibility" => $visibility,
           ":admin_key" => $adminKey,
+          ":email" => $email,
           ":config_json" => $json
         ]);
       } else {
         $stmt = $pdo->prepare("
-          INSERT INTO pieces (slug, visibility, admin_key, config_json)
-          VALUES (:slug, :visibility, :admin_key, :config_json)
+          INSERT INTO pieces (slug, visibility, admin_key, email, config_json)
+          VALUES (:slug, :visibility, :admin_key, :email, :config_json)
         ");
         $stmt->execute([
           ":slug" => $slug,
           ":visibility" => $visibility,
           ":admin_key" => $adminKey,
+          ":email" => $email,
           ":config_json" => $json
         ]);
       }
 
       $pieceId = (int)$pdo->lastInsertId();
 
+      // Send confirmation email with piece details
+      $emailSent = send_piece_created_email($email, $pieceId, $slug, $adminKey);
+
       Logger::audit('piece_created', [
         'id' => $pieceId,
         'slug' => $slug,
         'visibility' => $visibility,
+        'email' => $email,
+        'email_sent' => $emailSent,
         'ip' => $ip
       ]);
 
@@ -175,7 +188,8 @@ try {
         "id" => $pieceId,
         "slug" => $slug,
         "visibility" => $visibility,
-        "adminKey" => $adminKey
+        "adminKey" => $adminKey,
+        "emailSent" => $emailSent
       ]);
     } catch (PDOException $e) {
       if ($e->getCode() === '23000') {
@@ -302,7 +316,8 @@ try {
     }
 
     try {
-      $newConfig = validate_config($body["config"]);
+      validate_config($body["config"]); // Validates and throws on error
+      $newConfig = $body["config"]; // Use validated config
       $configJson = json_encode($newConfig, JSON_THROW_ON_ERROR);
     } catch (Exception $e) {
       respond(400, ["error" => "Invalid config: " . $e->getMessage()]);
