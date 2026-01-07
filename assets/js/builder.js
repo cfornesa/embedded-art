@@ -276,10 +276,110 @@ for (const s of SHAPES) {
 }
 updateBadges();
 
-// Normalize slug on blur (guard)
+// -------------------------
+// Real-time slug availability checking
+// -------------------------
+let slugCheckTimeout = null;
+let lastCheckedSlug = "";
+let isSlugAvailable = true;
+
+// Create feedback element for slug availability
+function ensureSlugFeedback() {
+  if (document.getElementById("slugFeedback")) return;
+  if (!slugEl) return;
+
+  const feedback = document.createElement("div");
+  feedback.id = "slugFeedback";
+  feedback.className = "small mt-1";
+  feedback.style.minHeight = "20px";
+
+  // Insert after the form-text div
+  const formText = slugEl.parentElement.querySelector(".form-text");
+  if (formText) {
+    formText.after(feedback);
+  } else {
+    slugEl.parentElement.appendChild(feedback);
+  }
+}
+
+ensureSlugFeedback();
+
+async function checkSlugAvailability(slug) {
+  const slugFeedback = $("#slugFeedback");
+
+  if (!slug || !slugFeedback) {
+    if (slugFeedback) slugFeedback.innerHTML = "";
+    isSlugAvailable = true;
+    return;
+  }
+
+  // Don't check the same slug twice in a row
+  if (slug === lastCheckedSlug) return;
+  lastCheckedSlug = slug;
+
+  slugFeedback.innerHTML = '<span class="text-secondary">⟳ Checking availability...</span>';
+
+  try {
+    const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(slug)}`, {
+      cache: "no-store"
+    });
+
+    if (res.status === 404) {
+      // Slug is available (piece not found)
+      isSlugAvailable = true;
+      slugFeedback.innerHTML = '<span class="text-success fw-semibold">✓ Available</span>';
+    } else if (res.ok) {
+      // Slug is taken (piece exists)
+      isSlugAvailable = false;
+      slugFeedback.innerHTML = '<span class="text-danger fw-semibold">✗ Already taken - please choose a different slug</span>';
+    } else {
+      // Unknown error (connection issue, server error, etc.)
+      slugFeedback.innerHTML = '<span class="text-warning">⚠ Could not verify availability</span>';
+      isSlugAvailable = true; // Allow submission anyway
+    }
+  } catch (err) {
+    slugFeedback.innerHTML = '<span class="text-warning">⚠ Network error - could not check availability</span>';
+    isSlugAvailable = true; // Allow submission anyway
+  }
+}
+
+function debouncedSlugCheck() {
+  if (slugCheckTimeout) clearTimeout(slugCheckTimeout);
+
+  const slug = normalizeSlug(slugEl?.value || "");
+
+  if (!slug) {
+    const slugFeedback = $("#slugFeedback");
+    if (slugFeedback) slugFeedback.innerHTML = "";
+    isSlugAvailable = true;
+    lastCheckedSlug = "";
+    return;
+  }
+
+  slugCheckTimeout = setTimeout(() => {
+    checkSlugAvailability(slug);
+  }, 500); // 500ms debounce - waits for user to stop typing
+}
+
+// Normalize slug on blur + check availability
 slugEl?.addEventListener("blur", () => {
-  slugEl.value = normalizeSlug(slugEl.value);
+  const normalized = normalizeSlug(slugEl.value);
+  slugEl.value = normalized;
+
+  if (normalized) {
+    // Immediately check availability when user leaves the field
+    checkSlugAvailability(normalized);
+  } else {
+    // Clear feedback if slug is empty
+    const slugFeedback = $("#slugFeedback");
+    if (slugFeedback) slugFeedback.innerHTML = "";
+    isSlugAvailable = true;
+    lastCheckedSlug = "";
+  }
 });
+
+// Check availability while typing (debounced)
+slugEl?.addEventListener("input", debouncedSlugCheck);
 
 // -------------------------
 // Reset (guard everything)
@@ -303,6 +403,13 @@ resetBtn?.addEventListener("click", () => {
 
   if (bgImageUrlEl) bgImageUrlEl.value = "";
   if (slugEl) slugEl.value = "";
+
+  // Clear slug availability feedback
+  const slugFeedback = $("#slugFeedback");
+  if (slugFeedback) slugFeedback.innerHTML = "";
+  isSlugAvailable = true;
+  lastCheckedSlug = "";
+  if (slugCheckTimeout) clearTimeout(slugCheckTimeout);
 
   clearMsg();
 
@@ -444,6 +551,17 @@ if (!form) {
     // slug (optional)
     const slugRaw = getVal("slug");
     const slugNormalized = normalizeSlug(slugRaw);
+
+    // Prevent submission if user provided a slug that is already taken
+    if (slugNormalized && !isSlugAvailable) {
+      setMsg("⚠️ The slug you entered is already taken. Please choose a different slug or leave it blank to auto-generate.", "warning");
+      if (slugEl) {
+        slugEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        slugEl.focus();
+        slugEl.select();
+      }
+      return;
+    }
 
     // global bg
     const bg = getVal("bgColor");
