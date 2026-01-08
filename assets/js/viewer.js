@@ -181,10 +181,21 @@ async function buildFromPiece(piece) {
       const geom = makeGeometry(type, Number(s.size || 1));
       let texture = null;
 
+      // Load texture with error handling - fall back to base color if texture fails
       if (s.textureUrl) {
-        texture = await loadTextureFromUrl(s.textureUrl);
+        try {
+          texture = await loadTextureFromUrl(s.textureUrl);
+        } catch (err) {
+          console.warn(`Failed to load texture for ${type}:`, s.textureUrl, err);
+          // Continue without texture - will use base color
+        }
       } else if (s.textureDataUrl) {
-        texture = await loadTextureFromUrl(s.textureDataUrl);
+        try {
+          texture = await loadTextureFromUrl(s.textureDataUrl);
+        } catch (err) {
+          console.warn(`Failed to load data texture for ${type}:`, err);
+          // Continue without texture - will use base color
+        }
       }
 
       for (let i = 0; i < count; i++) {
@@ -218,10 +229,21 @@ async function buildFromPiece(piece) {
   const geom = makeGeometry(config.shapeType, config.uniformSize || 1);
 
   let texture = null;
+  // Load texture with error handling - fall back to base color if texture fails
   if (config.textureUrl) {
-    texture = await loadTextureFromUrl(config.textureUrl);
+    try {
+      texture = await loadTextureFromUrl(config.textureUrl);
+    } catch (err) {
+      console.warn("Failed to load legacy texture:", config.textureUrl, err);
+      // Continue without texture - will use base color
+    }
   } else if (config.textureDataUrl) {
-    texture = await loadTextureFromUrl(config.textureDataUrl);
+    try {
+      texture = await loadTextureFromUrl(config.textureDataUrl);
+    } catch (err) {
+      console.warn("Failed to load legacy data texture:", err);
+      // Continue without texture - will use base color
+    }
   }
 
   const count = config.count || 20;
