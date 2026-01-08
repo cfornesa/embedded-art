@@ -20,18 +20,39 @@ Via FTP or Git, upload all files to `public_html/` except:
 
 **File:** `app/lib/config.php`
 
+**IMPORTANT:** This file contains sensitive credentials. Never commit it to git! It's already in `.gitignore`.
+
 ```php
 <?php
 return [
+  // ================================
+  // DATABASE (REQUIRED)
+  // ================================
   'DB_DRIVER' => 'mysql',
   'DB_HOST' => 'localhost',  // Try 'localhost' first, then '127.0.0.1' if issues
-  'DB_NAME' => 'u123456_artdb',  // Your database name
-  'DB_USER' => 'u123456_artuser',  // Your username
-  'DB_PASS' => 'your_secure_password'  // Your password
+  'DB_NAME' => 'u123456_artdb',  // Your database name from cPanel
+  'DB_USER' => 'u123456_artuser',  // Your database user from cPanel
+  'DB_PASS' => 'your_secure_password',  // Your database password
+
+  // ================================
+  // EMAIL (OPTIONAL)
+  // ================================
+  // On Hostinger shared hosting, PHP mail() works by default.
+  // You only need SMTP if you want to use an external email service.
+
+  // Option 1: Use Hostinger's mail() (default) - NO SMTP CONFIG NEEDED
+  // Just leave the SMTP settings commented out
+
+  // Option 2: Use external SMTP (Gmail, SendGrid, etc.)
+  // Uncomment these lines and add your credentials:
+  // 'SMTP_HOST' => 'smtp.gmail.com',
+  // 'SMTP_PORT' => 587,
+  // 'SMTP_USER' => 'your-email@gmail.com',
+  // 'SMTP_PASS' => 'your-app-password',
 ];
 ```
 
-**Important:** Set file permissions:
+**Important:** Set file permissions to restrict access:
 ```bash
 chmod 600 app/lib/config.php  # Only owner can read
 ```
