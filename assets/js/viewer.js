@@ -123,21 +123,66 @@ function clear() {
   meshes = [];
 }
 
+/**
+ * Wrap cross-origin image URLs with CORS proxy to enable texture loading.
+ * Same-origin images are returned as-is (no proxy needed).
+ */
+function wrapWithCorsProxy(url) {
+  if (!url || typeof url !== 'string') return url;
+
+  try {
+    const imageUrl = new URL(url, window.location.href);
+    const isSameOrigin = imageUrl.origin === window.location.origin;
+
+    // Same-origin images don't need proxy
+    if (isSameOrigin) {
+      return url;
+    }
+
+    // Wrap cross-origin images with CORS proxy
+    // This allows loading images from any source without CORS restrictions
+    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  } catch (e) {
+    // If URL parsing fails, wrap it anyway to be safe
+    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  }
+}
+
 async function loadTextureFromUrl(url) {
+  // Wrap with CORS proxy for cross-origin images
+  const proxiedUrl = wrapWithCorsProxy(url);
+  const isProxied = proxiedUrl !== url;
+
+  if (isProxied) {
+    console.log(`Using CORS proxy for: ${url}`);
+  }
+
   return new Promise((resolve, reject) => {
+    // Timeout after 15 seconds to prevent hanging (proxy can be slower)
+    const timeout = setTimeout(() => {
+      reject(new Error(`Texture loading timed out (15s): ${url}`));
+    }, 15000);
+
     const loader = new THREE.TextureLoader();
-    // Enable CORS for cross-origin textures
+    // Always enable CORS for proxied URLs
     loader.crossOrigin = 'anonymous';
 
     loader.load(
-      url,
+      proxiedUrl,
       (t) => {
+        clearTimeout(timeout);
+        // Validate that we got a real texture object
+        if (!t || !t.image) {
+          reject(new Error(`Invalid texture object received from ${url}`));
+          return;
+        }
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
         resolve(t);
       },
       undefined,
       (err) => {
+        clearTimeout(timeout);
         // Provide more detailed error information
         reject(new Error(`Texture failed to load from ${url}: ${err?.message || 'Unknown error'}`));
       }
@@ -162,13 +207,20 @@ async function buildFromPiece(piece) {
   // Load background image if provided
   if (config.bgImageUrl) {
     try {
+      console.log("Loading background image:", config.bgImageUrl);
       const bgTexture = await loadTextureFromUrl(config.bgImageUrl);
-      if (bgTexture) {
+      // Validate texture before applying
+      if (bgTexture && bgTexture.image) {
         scene.background = bgTexture;
+        console.log("✓ Background image loaded successfully");
+      } else {
+        console.warn("✗ Invalid background texture object, using background color");
+        scene.background = null;
       }
     } catch (err) {
-      console.warn("Failed to load background image:", err);
+      console.warn("✗ Failed to load background image, using background color:", err.message);
       // Keep using the background color as fallback
+      scene.background = null;
     }
   } else {
     // No background image - use solid color
@@ -220,7 +272,8 @@ async function buildFromPiece(piece) {
           opacity: Math.random() * 0.65 + 0.35
         });
 
-        if (texture) {
+        // Only apply texture if it's a valid texture object with an image
+        if (texture && texture.image) {
           mat.map = texture;
           mat.color.set("#ffffff");
           mat.needsUpdate = true;
@@ -275,7 +328,8 @@ async function buildFromPiece(piece) {
       opacity: Math.random() * 0.65 + 0.35
     });
 
-    if (texture) {
+    // Only apply texture if it's a valid texture object with an image
+    if (texture && texture.image) {
       mat.map = texture;
       mat.color.set("#ffffff");
       mat.needsUpdate = true;
