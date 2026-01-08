@@ -79,44 +79,43 @@ function has_mysql_creds(array $cfg): bool {
  * Ensure MySQL schema exists.
  */
 function ensure_mysql_schema(PDO $pdo): void {
-  $pdo->exec("
-    CREATE TABLE IF NOT EXISTS pieces (
-      id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      slug VARCHAR(60) NOT NULL,
-      visibility VARCHAR(12) NOT NULL DEFAULT 'public',
-      admin_key VARCHAR(64) NOT NULL,
-      email VARCHAR(255) NOT NULL,
-      config_json LONGTEXT NOT NULL,
-      PRIMARY KEY (id),
-      UNIQUE KEY uniq_slug (slug),
-      INDEX idx_visibility (visibility),
-      INDEX idx_created_at (created_at),
-      INDEX idx_email (email)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-  ");
+  static $migrationAttempted = false;
+
+  try {
+    $pdo->exec("
+      CREATE TABLE IF NOT EXISTS pieces (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        slug VARCHAR(60) NOT NULL,
+        visibility VARCHAR(12) NOT NULL DEFAULT 'public',
+        admin_key VARCHAR(64) NOT NULL,
+        email VARCHAR(255) NOT NULL DEFAULT '',
+        config_json LONGTEXT NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY uniq_slug (slug),
+        INDEX idx_visibility (visibility),
+        INDEX idx_created_at (created_at),
+        INDEX idx_email (email)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    ");
+  } catch (Throwable $e) {
+    // Table creation failed - log but continue
+    error_log("Table creation warning: " . $e->getMessage());
+  }
+
+  // Only attempt migration once per request
+  if ($migrationAttempted) return;
+  $migrationAttempted = true;
 
   // Add email column if it doesn't exist (for existing databases)
-  // MySQL doesn't support IF NOT EXISTS for ADD COLUMN in older versions
-  // This migration is completely silent - any errors are logged but won't break the API
+  // This entire block is optional and won't break the API if it fails
   try {
-    // Check if email column exists
     $result = $pdo->query("SHOW COLUMNS FROM pieces LIKE 'email'");
-    if ($result) {
-      $cols = $result->fetchAll();
-      if (empty($cols)) {
-        // Column doesn't exist, try to add it
-        try {
-          $pdo->exec("ALTER TABLE pieces ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''");
-        } catch (PDOException $alterEx) {
-          // Silently log and continue - don't break the API
-          error_log("Email column migration failed (this is OK if column exists): " . $alterEx->getMessage());
-        }
-      }
+    if ($result && empty($result->fetchAll())) {
+      @$pdo->exec("ALTER TABLE pieces ADD COLUMN email VARCHAR(255) NOT NULL DEFAULT ''");
     }
   } catch (Throwable $e) {
-    // Completely silent - log but never throw
-    error_log("Email column check failed (this is OK): " . $e->getMessage());
+    // Completely silent - migration failure is OK
   }
 }
 
@@ -124,46 +123,52 @@ function ensure_mysql_schema(PDO $pdo): void {
  * Ensure SQLite schema exists.
  */
 function ensure_sqlite_schema(PDO $pdo): void {
-  $pdo->exec("
-    CREATE TABLE IF NOT EXISTS pieces (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      created_at TEXT NOT NULL,
-      slug TEXT NOT NULL UNIQUE,
-      visibility TEXT NOT NULL DEFAULT 'public',
-      admin_key TEXT NOT NULL,
-      email TEXT NOT NULL DEFAULT '',
-      config_json TEXT NOT NULL
-    )
-  ");
+  static $migrationAttempted = false;
 
-  // Add performance indexes
-  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_visibility ON pieces(visibility)");
-  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_created_at ON pieces(created_at)");
-  $pdo->exec("CREATE INDEX IF NOT EXISTS idx_email ON pieces(email)");
+  try {
+    $pdo->exec("
+      CREATE TABLE IF NOT EXISTS pieces (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        visibility TEXT NOT NULL DEFAULT 'public',
+        admin_key TEXT NOT NULL,
+        email TEXT NOT NULL DEFAULT '',
+        config_json TEXT NOT NULL
+      )
+    ");
+
+    // Add performance indexes
+    @$pdo->exec("CREATE INDEX IF NOT EXISTS idx_visibility ON pieces(visibility)");
+    @$pdo->exec("CREATE INDEX IF NOT EXISTS idx_created_at ON pieces(created_at)");
+    @$pdo->exec("CREATE INDEX IF NOT EXISTS idx_email ON pieces(email)");
+  } catch (Throwable $e) {
+    // Table/index creation failed - log but continue
+    error_log("SQLite schema warning: " . $e->getMessage());
+  }
+
+  // Only attempt migration once per request
+  if ($migrationAttempted) return;
+  $migrationAttempted = true;
 
   // Add email column if it doesn't exist (for existing databases)
-  // SQLite doesn't have IF NOT EXISTS for ALTER TABLE, so check first
-  // This migration is completely silent - any errors are logged but won't break the API
+  // This entire block is optional and won't break the API if it fails
   try {
-    $cols = $pdo->query("PRAGMA table_info(pieces)")->fetchAll(PDO::FETCH_ASSOC);
-    $hasEmail = false;
-    foreach ($cols as $col) {
-      if ($col['name'] === 'email') {
-        $hasEmail = true;
-        break;
+    $cols = @$pdo->query("PRAGMA table_info(pieces)")->fetchAll(PDO::FETCH_ASSOC);
+    if ($cols) {
+      $hasEmail = false;
+      foreach ($cols as $col) {
+        if (isset($col['name']) && $col['name'] === 'email') {
+          $hasEmail = true;
+          break;
+        }
       }
-    }
-    if (!$hasEmail) {
-      try {
-        $pdo->exec("ALTER TABLE pieces ADD COLUMN email TEXT NOT NULL DEFAULT ''");
-      } catch (PDOException $alterEx) {
-        // Silently log and continue - don't break the API
-        error_log("Email column migration failed (this is OK if column exists): " . $alterEx->getMessage());
+      if (!$hasEmail) {
+        @$pdo->exec("ALTER TABLE pieces ADD COLUMN email TEXT NOT NULL DEFAULT ''");
       }
     }
   } catch (Throwable $e) {
-    // Completely silent - log but never throw
-    error_log("Email column check failed (this is OK): " . $e->getMessage());
+    // Completely silent - migration failure is OK
   }
 }
 
