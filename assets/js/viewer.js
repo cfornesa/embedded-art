@@ -125,7 +125,11 @@ function clear() {
 
 async function loadTextureFromUrl(url) {
   return new Promise((resolve, reject) => {
-    new THREE.TextureLoader().load(
+    const loader = new THREE.TextureLoader();
+    // Enable CORS for cross-origin textures
+    loader.crossOrigin = 'anonymous';
+
+    loader.load(
       url,
       (t) => {
         t.colorSpace = THREE.SRGBColorSpace;
@@ -133,7 +137,10 @@ async function loadTextureFromUrl(url) {
         resolve(t);
       },
       undefined,
-      () => reject(new Error("Texture failed to load"))
+      (err) => {
+        // Provide more detailed error information
+        reject(new Error(`Texture failed to load from ${url}: ${err?.message || 'Unknown error'}`));
+      }
     );
   });
 }
@@ -184,17 +191,23 @@ async function buildFromPiece(piece) {
       // Load texture with error handling - fall back to base color if texture fails
       if (s.textureUrl) {
         try {
+          console.log(`Loading texture for ${type}:`, s.textureUrl);
           texture = await loadTextureFromUrl(s.textureUrl);
+          console.log(`✓ Texture loaded successfully for ${type}`);
         } catch (err) {
-          console.warn(`Failed to load texture for ${type}:`, s.textureUrl, err);
+          console.warn(`✗ Failed to load texture for ${type}, falling back to base color:`, s.textureUrl, err.message);
           // Continue without texture - will use base color
+          texture = null;
         }
       } else if (s.textureDataUrl) {
         try {
+          console.log(`Loading data texture for ${type}`);
           texture = await loadTextureFromUrl(s.textureDataUrl);
+          console.log(`✓ Data texture loaded successfully for ${type}`);
         } catch (err) {
-          console.warn(`Failed to load data texture for ${type}:`, err);
+          console.warn(`✗ Failed to load data texture for ${type}, falling back to base color:`, err.message);
           // Continue without texture - will use base color
+          texture = null;
         }
       }
 
@@ -232,17 +245,23 @@ async function buildFromPiece(piece) {
   // Load texture with error handling - fall back to base color if texture fails
   if (config.textureUrl) {
     try {
+      console.log("Loading legacy texture:", config.textureUrl);
       texture = await loadTextureFromUrl(config.textureUrl);
+      console.log("✓ Legacy texture loaded successfully");
     } catch (err) {
-      console.warn("Failed to load legacy texture:", config.textureUrl, err);
+      console.warn("✗ Failed to load legacy texture, falling back to base color:", config.textureUrl, err.message);
       // Continue without texture - will use base color
+      texture = null;
     }
   } else if (config.textureDataUrl) {
     try {
+      console.log("Loading legacy data texture");
       texture = await loadTextureFromUrl(config.textureDataUrl);
+      console.log("✓ Legacy data texture loaded successfully");
     } catch (err) {
-      console.warn("Failed to load legacy data texture:", err);
+      console.warn("✗ Failed to load legacy data texture, falling back to base color:", err.message);
       // Continue without texture - will use base color
+      texture = null;
     }
   }
 
