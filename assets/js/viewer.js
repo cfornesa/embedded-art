@@ -123,32 +123,52 @@ function clear() {
   meshes = [];
 }
 
-async function loadTextureFromUrl(url) {
-  return new Promise((resolve, reject) => {
-    // Timeout after 10 seconds to prevent hanging
-    const timeout = setTimeout(() => {
-      reject(new Error(`Texture loading timed out (10s): ${url}`));
-    }, 10000);
+/**
+ * Wrap cross-origin image URLs with CORS proxy to enable texture loading.
+ * Same-origin images are returned as-is (no proxy needed).
+ */
+function wrapWithCorsProxy(url) {
+  if (!url || typeof url !== 'string') return url;
 
-    const loader = new THREE.TextureLoader();
+  try {
+    const imageUrl = new URL(url, window.location.href);
+    const isSameOrigin = imageUrl.origin === window.location.origin;
 
-    // Only use CORS for cross-origin images
-    // Same-origin images work without CORS, cross-origin images without CORS will fail gracefully
-    try {
-      const imageUrl = new URL(url, window.location.href);
-      const isSameOrigin = imageUrl.origin === window.location.origin;
-
-      // Only set crossOrigin for cross-origin images
-      if (!isSameOrigin) {
-        loader.crossOrigin = 'anonymous';
-      }
-    } catch (e) {
-      // If URL parsing fails, try with CORS anyway
-      loader.crossOrigin = 'anonymous';
+    // Same-origin images don't need proxy
+    if (isSameOrigin) {
+      return url;
     }
 
+    // Wrap cross-origin images with CORS proxy
+    // This allows loading images from any source without CORS restrictions
+    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  } catch (e) {
+    // If URL parsing fails, wrap it anyway to be safe
+    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+  }
+}
+
+async function loadTextureFromUrl(url) {
+  // Wrap with CORS proxy for cross-origin images
+  const proxiedUrl = wrapWithCorsProxy(url);
+  const isProxied = proxiedUrl !== url;
+
+  if (isProxied) {
+    console.log(`Using CORS proxy for: ${url}`);
+  }
+
+  return new Promise((resolve, reject) => {
+    // Timeout after 15 seconds to prevent hanging (proxy can be slower)
+    const timeout = setTimeout(() => {
+      reject(new Error(`Texture loading timed out (15s): ${url}`));
+    }, 15000);
+
+    const loader = new THREE.TextureLoader();
+    // Always enable CORS for proxied URLs
+    loader.crossOrigin = 'anonymous';
+
     loader.load(
-      url,
+      proxiedUrl,
       (t) => {
         clearTimeout(timeout);
         // Validate that we got a real texture object
