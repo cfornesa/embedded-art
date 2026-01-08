@@ -149,7 +149,25 @@ async function buildFromPiece(piece) {
   const config = piece.config || {};
   clear();
 
+  // Set background color first (fallback if image fails to load)
   renderer.setClearColor(new THREE.Color(config.bg || "#000000"), 1);
+
+  // Load background image if provided
+  if (config.bgImageUrl) {
+    try {
+      const bgTexture = await loadTextureFromUrl(config.bgImageUrl);
+      if (bgTexture) {
+        scene.background = bgTexture;
+      }
+    } catch (err) {
+      console.warn("Failed to load background image:", err);
+      // Keep using the background color as fallback
+    }
+  } else {
+    // No background image - use solid color
+    scene.background = null;
+  }
+
   camera.position.z = config.cameraZ || 10;
   rotationSpeed = config.rotationSpeed ?? 0.01;
 
