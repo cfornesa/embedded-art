@@ -381,12 +381,13 @@ try {
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
-    // Fetch piece details for audit log before deletion
+    // Fetch piece details including email for deletion notification
+    // IMPORTANT: Must fetch email BEFORE deletion since it won't be accessible afterward
     if (is_numeric_id($ref)) {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility FROM pieces WHERE id = :id LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email FROM pieces WHERE id = :id LIMIT 1");
       $stmt->execute([":id" => (int)$ref]);
     } else {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email FROM pieces WHERE slug = :slug LIMIT 1");
       $stmt->execute([":slug" => $ref]);
     }
 
@@ -395,6 +396,18 @@ try {
     if ((string)$row["admin_key"] !== $adminKey) {
       Logger::warning('invalid_admin_key_delete', ['ref' => $ref, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
       respond(403, ["error" => "Invalid admin key"]);
+    }
+
+    // Send deletion notification email BEFORE deleting the piece
+    $emailSent = false;
+    $email = (string)($row['email'] ?? '');
+    if ($email !== '') {
+      try {
+        $emailSent = send_piece_deleted_email($email, (int)$row['id'], (string)$row['slug']);
+      } catch (Throwable $e) {
+        error_log("Failed to send deletion email: " . $e->getMessage());
+        // Continue with deletion even if email fails
+      }
     }
 
     // Hard delete - permanently remove from database
@@ -411,11 +424,13 @@ try {
       'slug' => (string)$row['slug'],
       'ref' => $ref,
       'visibility' => (string)$row['visibility'],
+      'email' => $email,
+      'email_sent' => $emailSent,
       'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown',
       'permanent' => true
     ]);
 
-    respond(200, ["ok" => true, "deleted" => true]);
+    respond(200, ["ok" => true, "deleted" => true, "emailSent" => $emailSent]);
   }
 
   respond(405, ["error" => "Method not allowed"]);

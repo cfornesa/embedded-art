@@ -697,7 +697,21 @@ if (!form) {
         return;
       }
 
-      setMsg("Created successfully.", "success");
+      // Build configuration summary for backup
+      let configSummary = "📋 CONFIGURATION BACKUP (copy for your records):\n\n";
+      configSummary += "BACKGROUND\n";
+      configSummary += `• Color: ${payload.config.bg}\n`;
+      configSummary += `• Image URL: ${payload.config.bgImageUrl || '(none)'}\n\n`;
+      configSummary += "SHAPES\n";
+      payload.config.shapes.forEach((shape) => {
+        configSummary += `• ${shape.type.toUpperCase()}\n`;
+        configSummary += `  - Number of shapes: ${shape.count}\n`;
+        configSummary += `  - Size: ${shape.size}\n`;
+        configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
+        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+      });
+
+      setMsg(`Created successfully. <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">View Configuration Backup</summary><pre style="margin-top:8px;background:rgba(0,0,0,0.35);padding:12px;border-radius:8px;white-space:pre-wrap;font-size:0.85em;">${configSummary}</pre></details>`, "success");
       rp?.classList.remove("d-none");
 
       renderOutput({
