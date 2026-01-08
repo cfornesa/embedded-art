@@ -1,0 +1,1591 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Embedded Art Platform - Project Overview</title>
+
+  <link rel="icon" href="data:,">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <style>
+    :root{
+      --fg: #e9eef5;
+      --muted: rgba(233,238,245,.72);
+      --panel: rgba(255,255,255,.05);
+      --border: rgba(255,255,255,.10);
+      --inputbg: rgba(0,0,0,.18);
+      --codebg: rgba(0,0,0,.35);
+    }
+
+    body { 
+      background: #0b0d10; 
+      color: var(--fg); 
+      line-height: 1.6;
+    }
+
+    .card { 
+      background: var(--panel); 
+      border: 1px solid var(--border); 
+    }
+
+    .section-title {
+      font-weight: 800;
+      letter-spacing: .2px;
+      color: var(--fg);
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .badge-soft {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--fg);
+      padding: 0.35em 0.65em;
+      font-size: 0.85em;
+      border-radius: 6px;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      word-break: break-all;
+    }
+
+    .codebox, pre {
+      background: var(--codebg);
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 16px 18px;
+      color: var(--fg);
+      overflow-x: auto;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+
+    code {
+      background: var(--codebg);
+      color: var(--fg);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    pre code {
+      background: none;
+      padding: 0;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+      color: var(--fg);
+      font-weight: 700;
+    }
+
+    h1 { font-size: 2rem; margin-top: 1.5rem; margin-bottom: 1rem; }
+    h2 { font-size: 1.5rem; margin-top: 2.5rem; margin-bottom: 1rem; font-weight: 800; }
+    h3 { font-size: 1.25rem; margin-top: 1.75rem; margin-bottom: 0.75rem; font-weight: 700; }
+    h4 { font-size: 1.1rem; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+
+    hr {
+      border-color: var(--border);
+      margin: 2.5rem 0;
+      opacity: 0.5;
+    }
+
+    ul, ol {
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    strong {
+      color: rgba(233,238,245,.96);
+      font-weight: 700;
+    }
+
+    a {
+      color: #66b3ff;
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .alert {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      border-radius: 14px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .alert .fw-semibold {
+      color: rgba(233,238,245,.96);
+      margin-bottom: 0.5rem;
+    }
+
+    blockquote {
+      border-left: 3px solid var(--border);
+      padding-left: 1rem;
+      color: var(--muted);
+      margin: 1rem 0;
+    }
+
+    p {
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container py-4" style="max-width: 1200px;">
+    <div class="mb-4">
+      <h1 class="section-title">Embedded Art Platform - Project Overview</h1>
+    </div>
+<h1 class="section-title">Embedded Art Platform - Project Overview</h1>
+
+
+<h2 class="section-title">Project Description</h2>
+
+<p>A 3D art embedding platform that allows users to create, edit, and share interactive 3D scenes using Three.js. Users can configure shapes, textures, backgrounds, and camera settings through a visual builder, then embed their creations anywhere via iframe.</p>
+
+<hr />
+
+
+<h2 class="section-title">File Structure</h2>
+
+
+<pre class="codebox mono"><code>embedded-art/
+├── index.php                    # Landing page / gallery
+├── builder.html                 # Create new 3D pieces
+├── view.html                    # View individual pieces
+├── edit.html                    # Edit existing pieces (requires admin key)
+├── delete.html                  # Delete pieces (requires admin key)
+├── embed.html                   # Embeddable iframe version (no UI chrome)
+│
+├── api/
+│   └── index.php               # RESTful API (all CRUD operations)
+│
+├── app/
+│   ├── index.php               # Redirects to root index.php
+│   └── lib/
+│       ├── config.php          # Platform-agnostic configuration (MySQL, SMTP, CORS)
+│       ├── constants.php       # Global constants (timeouts, limits)
+│       ├── db.php              # Database abstraction (MySQL/SQLite)
+│       ├── logger.php          # Error logging system
+│       ├── piece.php           # Business logic (email notifications, validation)
+│       └── rate_limit.php      # API rate limiting
+│
+└── assets/
+    └── js/
+        ├── constants.js        # Shared frontend constants (API_BASE_URL)
+        ├── builder.js          # Builder page logic (create pieces)
+        ├── viewer.js           # 3D rendering engine (Three.js)
+        ├── edit.js             # Edit page logic (update pieces)
+        └── delete.js           # Delete page logic (remove pieces)
+</code></pre>
+
+
+<hr />
+
+
+<h2 class="section-title">Architecture Overview</h2>
+
+
+<h3><strong>Frontend</strong> (HTML + JavaScript + Three.js)</h3>
+
+<ul>
+<li>Users interact with HTML pages (builder, view, edit, delete)</li>
+<li>JavaScript makes API calls to backend</li>
+<li>Three.js renders 3D scenes in WebGL canvas</li>
+</ul>
+
+<h3><strong>Backend</strong> (PHP + MySQL/SQLite)</h3>
+
+<ul>
+<li>RESTful API handles all data operations</li>
+<li>Database stores piece configurations as JSON</li>
+<li>Admin keys provide ownership authentication</li>
+<li>Email notifications sent for create/edit/delete operations</li>
+</ul>
+
+<h3><strong>Data Flow</strong></h3>
+
+<ol>
+<li>User creates piece in builder → POST /api/pieces → Database insert → Email sent</li>
+<li>User views piece → GET /api/pieces/{slug} → Render with Three.js</li>
+<li>User edits piece → PATCH /api/pieces/{slug} → Database update → Email sent</li>
+<li>User deletes piece → DELETE /api/pieces/{slug} → Database delete → Email sent</li>
+</ol>
+
+<hr />
+
+
+<h2 class="section-title">Detailed File Pseudocode</h2>
+
+
+<hr />
+
+
+<h2 class="section-title">🌐 FRONTEND PAGES</h2>
+
+
+<h3><strong>index.php</strong> (Landing Page)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  REDIRECT to builder.html
+  # Future: could display gallery of public pieces
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Entry point to the application</p>
+
+<hr />
+
+
+<h3><strong>builder.html</strong> (Create New Pieces)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  DISPLAY form:
+    - Email input (required for notifications)
+    - Background color picker
+    - Background image URL input
+    - Shape configuration (type, count, size, color, texture)
+    - Camera settings (position, rotation speed)
+    - Visibility toggle (public/private)
+
+  ON form submit:
+    VALIDATE all inputs
+    BUILD configuration JSON object
+    POST to /api/pieces with config
+    RECEIVE response with slug and admin_key
+    REDIRECT to view.html?id={slug}
+    EMAIL sent to user with admin key and embed codes
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Visual builder for creating 3D art pieces</p>
+
+<p><strong>Key Features</strong>:</p>
+<ul>
+<li>Real-time preview using viewer.js</li>
+<li>Multiple shape types (sphere, cube, torus, etc.)</li>
+<li>Texture and background image support</li>
+<li>Generates unique slug and admin key on creation</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>view.html</strong> (View Individual Pieces)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ query parameter: ?id={slug}
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  IF piece found:
+    LOAD viewer.js with configuration
+    RENDER 3D scene in canvas
+    DISPLAY piece metadata (slug, created date)
+    SHOW edit/delete links
+  ELSE:
+    DISPLAY &quot;Piece not found&quot; error
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Display a single 3D piece with navigation chrome</p>
+
+<p><strong>URL Pattern</strong>: <code>view.html?id=neon-1</code></p>
+
+<hr />
+
+
+<h3><strong>embed.html</strong> (Embeddable Version)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ query parameter: ?id={slug}
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  IF piece found:
+    LOAD viewer.js with configuration
+    RENDER 3D scene in canvas (fullscreen, no UI)
+  ELSE:
+    DISPLAY minimal error
+
+  # No navigation, no chrome - pure 3D content for iframe embedding
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Stripped-down version for iframe embedding</p>
+
+<p><strong>URL Pattern</strong>: <code>embed.html?id=neon-1</code></p>
+
+<p><strong>Usage</strong>: <code>&lt;iframe src=&quot;https://art.augmenthumankind.com/embed.html?id=neon-1&quot;&gt;</code></p>
+
+<hr />
+
+
+<h3><strong>edit.html</strong> (Edit Existing Pieces)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ query parameters: ?id={slug}&amp;key={admin_key}
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  DISPLAY form pre-filled with existing configuration:
+    - All fields from builder (background, shapes, camera)
+
+  ON form submit:
+    VALIDATE all inputs
+    BUILD updated configuration JSON
+    PATCH to /api/pieces/{slug} with admin_key in header
+
+    IF admin_key valid:
+      UPDATE database
+      EMAIL sent to user with updated config
+      REDIRECT to view.html?id={slug}
+    ELSE:
+      DISPLAY &quot;Invalid admin key&quot; error (403)
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Modify existing pieces (requires authentication)</p>
+
+<p><strong>URL Pattern</strong>: <code>edit.html?id=neon-1&amp;key={admin_key}</code></p>
+
+<p><strong>Security</strong>: Admin key validated server-side</p>
+
+<hr />
+
+
+<h3><strong>delete.html</strong> (Delete Pieces)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ query parameters: ?id={slug}&amp;key={admin_key}
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  DISPLAY confirmation dialog:
+    - Show piece slug
+    - &quot;Are you sure?&quot; warning
+
+  ON confirm:
+    DELETE to /api/pieces/{slug} with admin_key in header
+
+    IF admin_key valid:
+      DELETE from database
+      EMAIL sent to user with deleted config
+      REDIRECT to builder.html
+    ELSE:
+      DISPLAY &quot;Invalid admin key&quot; error (403)
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Remove pieces permanently (requires authentication)</p>
+
+<p><strong>URL Pattern</strong>: <code>delete.html?id=neon-1&amp;key={admin_key}</code></p>
+
+<p><strong>Security</strong>: Admin key validated server-side</p>
+
+<hr />
+
+
+<h2 class="section-title">🎨 FRONTEND JAVASCRIPT</h2>
+
+
+<h3><strong>assets/js/constants.js</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  EXPORT API_BASE_URL:
+    IF on Replit domain:
+      RETURN &quot;https://replit-domain/api&quot;
+    ELSE IF on Hostinger domain:
+      RETURN &quot;https://art.augmenthumankind.com/api&quot;
+    ELSE:
+      RETURN &quot;/api&quot; (relative)
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Platform-agnostic API endpoint configuration</p>
+
+<p><strong>Why Important</strong>: Same code works on Replit (dev) and Hostinger (prod)</p>
+
+<hr />
+
+
+<h3><strong>assets/js/builder.js</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  INITIALIZE form with default values:
+    background = black
+    shapes = [one sphere with default settings]
+    camera = {z: 10, rotationSpeed: 0.01}
+
+  SETUP event listeners:
+    - Add shape button → adds new shape to config
+    - Remove shape button → removes shape from config
+    - Color pickers → updates config
+    - Texture URL inputs → updates config
+    - Preview button → renders preview with viewer.js
+
+  ON submit:
+    VALIDATE:
+      - Email is valid format
+      - At least one shape configured
+      - All URLs are valid (if provided)
+
+    BUILD config object:
+      config = {
+        bg: backgroundColor,
+        bgImageUrl: backgroundImageUrl,
+        shapes: [
+          {type, count, size, palette: {baseColor}, textureUrl}
+        ],
+        cameraZ: cameraPosition,
+        rotationSpeed: rotationSpeed
+      }
+
+    POST /api/pieces with {email, config, visibility}
+
+    ON success:
+      EXTRACT {slug, admin_key} from response
+      REDIRECT to view.html?id={slug}
+
+    ON error:
+      DISPLAY error message to user
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Form logic for creating new pieces</p>
+
+<p><strong>Key Responsibilities</strong>:</p>
+<ul>
+<li>Form validation</li>
+<li>Configuration object construction</li>
+<li>API communication</li>
+<li>Preview rendering</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>assets/js/viewer.js</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  IMPORT Three.js library
+
+  FUNCTION initViewer(canvasId, config):
+    CREATE Three.js scene
+    CREATE camera with perspective projection
+    CREATE WebGL renderer
+
+    # Background setup
+    IF config.bgImageUrl exists:
+      LOAD texture from URL
+      SET scene.background = texture
+    ELSE:
+      SET renderer clear color = config.bg
+
+    # Shape generation
+    FOR EACH shape in config.shapes:
+      CREATE geometry based on shape.type (sphere, cube, torus, etc.)
+
+      IF shape.textureUrl exists:
+        LOAD texture from URL
+        CREATE material with texture
+      ELSE:
+        CREATE material with base color
+
+      FOR i = 1 to shape.count:
+        CREATE mesh with geometry and material
+        RANDOMIZE position in 3D space
+        RANDOMIZE rotation
+        ADD mesh to scene
+
+    # Camera setup
+    SET camera.position.z = config.cameraZ
+
+    # Lighting
+    ADD ambient light (soft, all-around)
+    ADD directional light (from top-right)
+
+    # Animation loop
+    FUNCTION animate():
+      REQUEST next animation frame
+
+      FOR EACH mesh in scene:
+        ROTATE mesh.x by config.rotationSpeed
+        ROTATE mesh.y by config.rotationSpeed
+
+      RENDER scene with camera
+
+    START animation loop
+
+  EXPORT initViewer
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Three.js rendering engine (the heart of the 3D visualization)</p>
+
+<p><strong>Key Responsibilities</strong>:</p>
+<ul>
+<li>Scene setup (camera, lights, renderer)</li>
+<li>Background rendering (color or image)</li>
+<li>Shape generation with random positioning</li>
+<li>Texture loading and application</li>
+<li>Animation loop (continuous rotation)</li>
+</ul>
+
+<p><strong>Used By</strong>: builder.html (preview), view.html, embed.html</p>
+
+<hr />
+
+
+<h3><strong>assets/js/edit.js</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ URL parameters: slug, admin_key
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  IF piece found:
+    POPULATE form fields with existing config:
+      - Background color → color picker
+      - Background image URL → text input
+      - Camera settings → number inputs
+      - Shapes → dynamically create shape forms
+      - For each shape:
+        - Type → dropdown
+        - Count → number input
+        - Size → number input
+        - Color → color picker
+        - Texture URL → text input
+
+  SETUP event listeners (same as builder.js):
+    - Add/remove shapes
+    - Preview button
+    - Form inputs
+
+  ON submit:
+    VALIDATE all inputs
+
+    BUILD updated config object
+
+    PATCH /api/pieces/{slug} with:
+      HEADERS: X-Admin-Key = admin_key
+      BODY: {config, visibility}
+
+    ON success:
+      REDIRECT to view.html?id={slug}
+
+    ON error (403):
+      DISPLAY &quot;Invalid admin key&quot; error
+
+    ON error (other):
+      DISPLAY generic error message
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Form logic for editing existing pieces</p>
+
+<p><strong>Key Differences from builder.js</strong>:</p>
+<ul>
+<li>Pre-populates form with existing data</li>
+<li>Uses PATCH instead of POST</li>
+<li>Sends admin key in request header</li>
+<li>Handles 403 authentication errors</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>assets/js/delete.js</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  READ URL parameters: slug, admin_key
+
+  FETCH piece from GET /api/pieces/{slug}
+
+  DISPLAY piece info:
+    - Slug
+    - Created date
+    - &quot;Are you sure?&quot; warning
+
+  ON confirm button click:
+    DELETE /api/pieces/{slug} with:
+      HEADERS: X-Admin-Key = admin_key
+
+    ON success:
+      DISPLAY &quot;Piece deleted successfully&quot;
+      REDIRECT to builder.html after 2 seconds
+
+    ON error (403):
+      DISPLAY &quot;Invalid admin key&quot; error
+
+    ON error (404):
+      DISPLAY &quot;Piece not found&quot; error
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Deletion confirmation and execution</p>
+
+<p><strong>Security</strong>: Admin key required, validated server-side</p>
+
+<hr />
+
+
+<h2 class="section-title">⚙️ BACKEND API</h2>
+
+
+<h3><strong>api/index.php</strong> (RESTful API)</h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  LOAD configuration from app/lib/config.php
+  LOAD database connection from app/lib/db.php
+  LOAD business logic from app/lib/piece.php
+
+  SET CORS headers based on ALLOWED_ORIGINS config
+  SET security headers (X-Content-Type-Options, X-Frame-Options)
+
+  HANDLE OPTIONS requests (preflight):
+    RESPOND 204 No Content
+
+  PARSE request:
+    method = GET | POST | PATCH | DELETE
+    path = /api/pieces or /api/pieces/{ref}
+
+  # ===== CREATE PIECE =====
+  IF POST /api/pieces:
+    CHECK rate limit for IP address
+    PARSE JSON body: {email, config, visibility}
+
+    VALIDATE:
+      - Email is valid format
+      - Config has required fields (bg, shapes, camera)
+      - Visibility is &quot;public&quot; or &quot;private&quot;
+
+    GENERATE unique slug (adjective-noun-number)
+    GENERATE random admin_key (64-char hex)
+
+    INSERT into database:
+      slug, visibility, admin_key, email, config_json, created_at
+
+    SEND email notification with:
+      - Admin key (for future edits/deletes)
+      - View URL
+      - Edit URL
+      - Delete URL
+      - Embed codes (iframe, direct link)
+      - Full configuration details
+
+    RESPOND 201 Created:
+      {id, slug, admin_key, config}
+
+  # ===== READ PIECE =====
+  IF GET /api/pieces/{ref}:
+    WHERE ref = slug OR id
+
+    QUERY database for piece
+
+    IF not found:
+      RESPOND 404 Not Found
+
+    IF piece.visibility = &quot;public&quot;:
+      SET Cache-Control: public, max-age=3600
+      SET ETag based on config hash
+
+      IF client has matching ETag:
+        RESPOND 304 Not Modified
+    ELSE:
+      SET Cache-Control: private, no-cache
+
+    RESPOND 200 OK:
+      {id, slug, visibility, config}
+
+  # ===== UPDATE PIECE =====
+  IF PATCH /api/pieces/{ref}:
+    WHERE ref = slug OR id
+
+    READ admin_key from X-Admin-Key header
+    PARSE JSON body: {config, visibility}
+
+    QUERY database for piece
+
+    IF not found:
+      RESPOND 404 Not Found
+
+    IF admin_key != stored admin_key:
+      RESPOND 403 Forbidden &quot;Invalid admin key&quot;
+
+    VALIDATE new config (same as create)
+
+    UPDATE database:
+      SET config_json = new_config
+      SET visibility = new_visibility
+
+    SEND email notification with:
+      - Updated configuration details
+      - View URL
+
+    RESPOND 200 OK:
+      {id, slug, visibility, config}
+
+  # ===== DELETE PIECE =====
+  IF DELETE /api/pieces/{ref}:
+    WHERE ref = slug OR id
+
+    READ admin_key from X-Admin-Key header
+
+    QUERY database for piece
+
+    IF not found:
+      RESPOND 404 Not Found
+
+    IF admin_key != stored admin_key:
+      RESPOND 403 Forbidden &quot;Invalid admin key&quot;
+
+    FETCH email and config before deletion
+
+    DELETE from database WHERE id = piece.id
+
+    SEND email notification with:
+      - Deleted configuration (for records)
+      - Confirmation of deletion
+
+    RESPOND 200 OK:
+      {success: true}
+
+  # ===== LIST PIECES (Gallery - future feature) =====
+  IF GET /api/pieces:
+    QUERY database WHERE visibility = &quot;public&quot;
+    ORDER BY created_at DESC
+    LIMIT 50
+
+    RESPOND 200 OK:
+      [{id, slug, config}]
+
+  # ===== HEALTH CHECK =====
+  IF GET /api/health:
+    CHECK database connection
+    RESPOND 200 OK:
+      {status: &quot;healthy&quot;, database: &quot;mysql|sqlite&quot;}
+
+  # ===== ERROR HANDLING =====
+  CATCH all exceptions:
+    LOG error details
+    RESPOND 500 Internal Server Error:
+      {error: &quot;message&quot;}
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Complete REST API for all CRUD operations</p>
+
+<p><strong>Key Features</strong>:</p>
+<ul>
+<li>RESTful routing (GET/POST/PATCH/DELETE)</li>
+<li>Admin key authentication for write operations</li>
+<li>Email notifications for all operations</li>
+<li>Rate limiting to prevent abuse</li>
+<li>Caching for performance (1-hour cache for public pieces)</li>
+<li>Platform-agnostic (works on Replit and Hostinger)</li>
+</ul>
+
+<p><strong>Authentication Model</strong>:</p>
+<ul>
+<li>No user accounts (stateless)</li>
+<li>Admin key = ownership proof</li>
+<li>Admin key sent via email on creation</li>
+<li>Key required for edit/delete operations</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">📚 BACKEND LIBRARIES</h2>
+
+
+<h3><strong>app/lib/config.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  RETURN configuration array:
+    # Database (MySQL for production)
+    DB_DRIVER = &quot;mysql&quot;
+    DB_HOST = &quot;localhost&quot;
+    DB_NAME = &quot;database_name&quot;
+    DB_USER = &quot;database_user&quot;
+    DB_PASS = &quot;database_password&quot;
+
+    # SMTP (for email notifications)
+    SMTP_HOST = &quot;smtp.example.com&quot;
+    SMTP_PORT = 587
+    SMTP_USER = &quot;email@example.com&quot;
+    SMTP_PASS = &quot;smtp_password&quot;
+
+    # CORS (allow both Replit and Hostinger domains)
+    ALLOWED_ORIGINS = &quot;https://replit.dev,https://art.augmenthumankind.com&quot;
+
+    # Debug endpoints (enable for development)
+    ENABLE_DEBUG_ENDPOINTS = true
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Platform-agnostic configuration</p>
+
+<p><strong>Why Important</strong>:</p>
+<ul>
+<li>Same code runs on Replit (SQLite) and Hostinger (MySQL)</li>
+<li>Comment out DB config on Replit (uses SQLite)</li>
+<li>Uncomment DB config on Hostinger (uses MySQL)</li>
+<li>No code changes needed between environments</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>app/lib/constants.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  DEFINE global constants:
+    DB_TIMEOUT_SECONDS = 5           # Database connection timeout
+    MAX_CONFIG_SIZE_KB = 512         # Maximum JSON config size
+    RATE_LIMIT_REQUESTS = 100        # Max requests per hour per IP
+    RATE_LIMIT_WINDOW_MINUTES = 60   # Rate limit time window
+    EMAIL_FROM = &quot;noreply@augmenthumankind.com&quot;
+    EMAIL_FROM_NAME = &quot;Embedded Art Platform&quot;
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Application-wide constants</p>
+
+<hr />
+
+
+<h3><strong>app/lib/db.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  FUNCTION load_config():
+    READ environment variables (DB_DRIVER, DB_HOST, etc.)
+    IF config.php exists:
+      MERGE config.php values with environment variables
+    RETURN merged config
+
+  FUNCTION has_mysql_creds(config):
+    RETURN true IF DB_HOST, DB_NAME, DB_USER are set
+
+  FUNCTION try_mysql(config):
+    ATTEMPT connection to MySQL database:
+      TRY host = config.DB_HOST
+      IF host = &quot;localhost&quot;, also TRY host = &quot;127.0.0.1&quot;
+
+      CREATE PDO connection with:
+        - DSN: mysql:host={host};dbname={name};charset=utf8mb4
+        - Timeout: 5 seconds (fast fail)
+        - Error mode: exceptions
+
+      CALL ensure_mysql_schema(pdo)
+      RETURN pdo connection
+
+    IF connection fails:
+      THROW exception
+
+  FUNCTION try_sqlite():
+    CHECK if SQLite PDO driver available
+
+    SET database path = app/data/pieces.sqlite
+
+    IF app/data directory not writable:
+      THROW exception
+
+    CREATE PDO connection to SQLite file
+
+    CALL ensure_sqlite_schema(pdo)
+    RETURN pdo connection
+
+  FUNCTION ensure_mysql_schema(pdo):
+    CREATE TABLE IF NOT EXISTS pieces (
+      id BIGINT UNSIGNED AUTO_INCREMENT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      slug VARCHAR(60) UNIQUE,
+      visibility VARCHAR(12) DEFAULT &#x27;public&#x27;,
+      admin_key VARCHAR(64),
+      email VARCHAR(255) DEFAULT &#x27;&#x27;,
+      config_json LONGTEXT,
+      PRIMARY KEY (id),
+      INDEX (slug),
+      INDEX (visibility),
+      INDEX (created_at),
+      INDEX (email)
+    )
+
+    # Migration: Add email column if it doesn&#x27;t exist
+    IF email column missing:
+      ALTER TABLE pieces ADD COLUMN email VARCHAR(255) DEFAULT &#x27;&#x27;
+
+  FUNCTION ensure_sqlite_schema(pdo):
+    CREATE TABLE IF NOT EXISTS pieces (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      created_at TEXT,
+      slug TEXT UNIQUE,
+      visibility TEXT DEFAULT &#x27;public&#x27;,
+      admin_key TEXT,
+      email TEXT DEFAULT &#x27;&#x27;,
+      config_json TEXT
+    )
+
+    CREATE indexes on visibility, created_at, email
+
+    # Migration: Add email column if it doesn&#x27;t exist
+    IF email column missing:
+      ALTER TABLE pieces ADD COLUMN email TEXT DEFAULT &#x27;&#x27;
+
+  FUNCTION pdo_conn():
+    STATIC connection (singleton pattern)
+
+    IF connection already exists:
+      RETURN existing connection
+
+    LOAD config
+
+    IF should try MySQL first:
+      TRY MySQL connection
+      IF MySQL fails:
+        FALLBACK to SQLite
+    ELSE:
+      USE SQLite
+
+    RETURN connection
+
+  FUNCTION db_health():
+    ATTEMPT database connection
+    RETURN {ok: true/false, driver: &quot;mysql&quot;|&quot;sqlite&quot;}
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Database abstraction layer</p>
+
+<p><strong>Key Features</strong>:</p>
+<ul>
+<li>Platform-agnostic (MySQL or SQLite)</li>
+<li>Automatic fallback (MySQL fails → SQLite)</li>
+<li>Schema auto-creation</li>
+<li>Migration support (adds email column to existing databases)</li>
+<li>Singleton pattern (one connection per request)</li>
+</ul>
+
+<p><strong>Development vs Production</strong>:</p>
+<ul>
+<li><strong>Replit (dev)</strong>: Uses SQLite (no config needed)</li>
+<li><strong>Hostinger (prod)</strong>: Uses MySQL (configured in config.php)</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>app/lib/piece.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  FUNCTION generate_slug():
+    adjectives = [&quot;neon&quot;, &quot;cosmic&quot;, &quot;digital&quot;, &quot;crystal&quot;, ...]
+    nouns = [&quot;wave&quot;, &quot;sphere&quot;, &quot;vortex&quot;, &quot;prism&quot;, ...]
+
+    adjective = random choice from adjectives
+    noun = random choice from nouns
+    number = random 1-9999
+
+    RETURN &quot;{adjective}-{noun}-{number}&quot;
+
+  FUNCTION generate_admin_key():
+    GENERATE 32 random bytes
+    CONVERT to hexadecimal string (64 characters)
+    RETURN hex string
+
+  FUNCTION validate_email(email):
+    CHECK format using filter_var(FILTER_VALIDATE_EMAIL)
+    RETURN true/false
+
+  FUNCTION validate_config(config):
+    CHECK config has required keys:
+      - bg (background color)
+      - shapes (array of shape objects)
+      - cameraZ (camera position)
+      - rotationSpeed (animation speed)
+
+    FOR EACH shape in config.shapes:
+      CHECK shape has:
+        - type (sphere, cube, torus, etc.)
+        - count (number of instances)
+        - size (scale)
+        - palette.baseColor (color hex)
+
+    IF any validation fails:
+      THROW exception with error message
+
+    RETURN true
+
+  FUNCTION format_config_for_email(config):
+    BUILD human-readable text:
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      CONFIGURATION DETAILS
+      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+      BACKGROUND:
+      • Color: {config.bg}
+      • Image URL: {config.bgImageUrl or &quot;(none)&quot;}
+
+      SHAPES:
+      • {shape.type}
+        - Number of shapes: {shape.count}
+        - Size: {shape.size}
+        - Base color: {shape.palette.baseColor}
+        - Texture URL: {shape.textureUrl or &quot;(none)&quot;}
+
+      CAMERA:
+      • Position Z: {config.cameraZ}
+      • Rotation speed: {config.rotationSpeed}
+
+    RETURN formatted text
+
+  FUNCTION send_piece_created_email(email, pieceId, slug, adminKey, config):
+    BUILD email message:
+      Subject: &quot;Your 3D Art Piece &#x27;{slug}&#x27; Has Been Created&quot;
+
+      Body:
+        Success message
+
+        ADMIN KEY (save this!): {adminKey}
+
+        LINKS:
+        • View: https://art.augmenthumankind.com/view.html?id={slug}
+        • Edit: https://art.augmenthumankind.com/edit.html?id={slug}&amp;key={adminKey}
+        • Delete: https://art.augmenthumankind.com/delete.html?id={slug}&amp;key={adminKey}
+
+        EMBED CODES:
+        &lt;iframe src=&quot;https://art.augmenthumankind.com/embed.html?id={slug}&quot; ...&gt;
+
+        {formatted configuration}
+
+    SEND email via SMTP
+    RETURN success/failure
+
+  FUNCTION send_piece_updated_email(email, pieceId, slug, config):
+    BUILD email message:
+      Subject: &quot;Your 3D Art Piece &#x27;{slug}&#x27; Has Been Updated&quot;
+
+      Body:
+        Update confirmation
+
+        View URL: https://art.augmenthumankind.com/view.html?id={slug}
+
+        {formatted configuration}
+
+    SEND email via SMTP
+    RETURN success/failure
+
+  FUNCTION send_piece_deleted_email(email, pieceId, slug, config):
+    BUILD email message:
+      Subject: &quot;Your 3D Art Piece &#x27;{slug}&#x27; Has Been Deleted&quot;
+
+      Body:
+        Deletion confirmation
+
+        {formatted configuration before deletion}
+
+        (You can recreate this piece using the configuration above)
+
+    SEND email via SMTP
+    RETURN success/failure
+
+  FUNCTION send_email_via_smtp(to, subject, body):
+    LOAD SMTP config (host, port, user, pass)
+
+    CONNECT to SMTP server on port 587
+    SEND EHLO command
+    SEND STARTTLS command (upgrade to encrypted connection)
+    SEND AUTH LOGIN command with username/password
+    SEND MAIL FROM command
+    SEND RCPT TO command
+    SEND DATA command
+    SEND email headers and body
+    SEND quit command
+    CLOSE connection
+
+    RETURN success/failure
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Business logic and utilities</p>
+
+<p><strong>Key Functions</strong>:</p>
+<ul>
+<li>Slug generation (human-readable IDs)</li>
+<li>Admin key generation (cryptographically secure)</li>
+<li>Email validation</li>
+<li>Configuration validation</li>
+<li>Email sending (native SMTP, no library dependencies)</li>
+</ul>
+
+<p><strong>Email Notifications</strong>:</p>
+<ul>
+<li><strong>Created</strong>: Admin key, all URLs, embed codes, config</li>
+<li><strong>Updated</strong>: Confirmation, view URL, updated config</li>
+<li><strong>Deleted</strong>: Confirmation, config before deletion (for rebuilding)</li>
+</ul>
+
+<hr />
+
+
+<h3><strong>app/lib/rate_limit.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  FUNCTION check_rate_limit(ip_address):
+    cache_dir = app/data/rate_limits
+    cache_file = cache_dir + md5(ip_address) + &quot;.json&quot;
+
+    IF cache directory not writable:
+      LOG warning
+      RETURN (fail open - don&#x27;t block user if cache fails)
+
+    IF cache_file exists:
+      LOAD data = {requests: [], blocked_until}
+
+      IF blocked_until &gt; now:
+        THROW exception &quot;Rate limit exceeded&quot;
+    ELSE:
+      INITIALIZE data = {requests: [], blocked_until: null}
+
+    # Remove requests older than 1 hour
+    FILTER data.requests to keep only recent requests
+
+    # Add current request
+    ADD current timestamp to data.requests
+
+    # Check if limit exceeded
+    IF count(data.requests) &gt; MAX_REQUESTS (100):
+      SET data.blocked_until = now + 1 hour
+      SAVE data to cache_file
+      THROW exception &quot;Rate limit exceeded&quot;
+
+    # Save updated request log
+    SAVE data to cache_file
+
+    RETURN (request allowed)
+
+  FUNCTION cleanup_rate_limit_cache():
+    FOR EACH file in app/data/rate_limits:
+      IF file is older than 24 hours:
+        DELETE file
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Prevent API abuse</p>
+
+<p><strong>How It Works</strong>:</p>
+<ul>
+<li>Tracks requests per IP address</li>
+<li>Stores in JSON files (one per IP)</li>
+<li>Limit: 100 requests per hour</li>
+<li>Block duration: 1 hour</li>
+<li>Auto-cleanup: Removes old files after 24 hours</li>
+</ul>
+
+<p><strong>Fail-Open Policy</strong>: If cache system fails, allow the request (don&#x27;t block legitimate users)</p>
+
+<hr />
+
+
+<h3><strong>app/lib/logger.php</strong></h3>
+
+<pre class="codebox mono"><code>PSEUDOCODE:
+  CLASS Logger:
+    STATIC FUNCTION error(message, context):
+      LOG to error_log with [ERROR] prefix
+      INCLUDE timestamp, message, context data
+
+    STATIC FUNCTION warning(message, context):
+      LOG to error_log with [WARNING] prefix
+      INCLUDE timestamp, message, context data
+
+    STATIC FUNCTION info(message, context):
+      LOG to error_log with [INFO] prefix
+      INCLUDE timestamp, message, context data
+</code></pre>
+
+
+<p><strong>Purpose</strong>: Structured logging</p>
+
+<p><strong>Usage</strong>: <code>Logger::error(&#x27;database_connection_failed&#x27;, [&#x27;host&#x27; =&gt; &#x27;localhost&#x27;])</code></p>
+
+<hr />
+
+
+<h2 class="section-title">🔐 Security Features</h2>
+
+
+<h3><strong>Authentication</strong></h3>
+
+<ul>
+<li><strong>Admin Keys</strong>: 64-character hex strings (256 bits of entropy)</li>
+<li><strong>No Sessions</strong>: Stateless authentication (key required for each operation)</li>
+<li><strong>No Passwords</strong>: Email-based delivery of admin keys</li>
+</ul>
+
+<h3><strong>Authorization</strong></h3>
+
+<ul>
+<li><strong>Ownership Model</strong>: Admin key = ownership proof</li>
+<li><strong>Edit Protection</strong>: PATCH requires matching admin key (403 if invalid)</li>
+<li><strong>Delete Protection</strong>: DELETE requires matching admin key (403 if invalid)</li>
+</ul>
+
+<h3><strong>Input Validation</strong></h3>
+
+<ul>
+<li>Email format validation</li>
+<li>Configuration schema validation</li>
+<li>URL validation (backgrounds and textures)</li>
+<li>JSON size limits (512KB max)</li>
+</ul>
+
+<h3><strong>Rate Limiting</strong></h3>
+
+<ul>
+<li>100 requests per hour per IP</li>
+<li>Prevents brute-force attacks on admin keys</li>
+<li>Prevents database spam</li>
+</ul>
+
+<h3><strong>CORS</strong></h3>
+
+<ul>
+<li>Configured allowed origins (Replit + Hostinger)</li>
+<li>Preflight request handling</li>
+<li>Prevents unauthorized cross-origin requests</li>
+</ul>
+
+<h3><strong>Security Headers</strong></h3>
+
+<ul>
+<li><code>X-Content-Type-Options: nosniff</code> (prevent MIME sniffing)</li>
+<li><code>X-Frame-Options: SAMEORIGIN</code> (clickjacking protection)</li>
+<li><code>Referrer-Policy: strict-origin-when-cross-origin</code> (privacy)</li>
+</ul>
+
+<h3><strong>SQL Injection Prevention</strong></h3>
+
+<ul>
+<li>PDO prepared statements (parameterized queries)</li>
+<li>No string concatenation in SQL</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">🎯 Key Interview Points</h2>
+
+
+<h3><strong>1. Architecture Decision: Why No User Accounts?</strong></h3>
+
+<ul>
+<li><strong>Simplicity</strong>: No registration, login, password reset flows</li>
+<li><strong>Privacy</strong>: No personal data stored beyond email</li>
+<li><strong>Stateless</strong>: Admin key = ownership proof (can be shared)</li>
+<li><strong>Use Case</strong>: Designed for quick art creation, not long-term management</li>
+</ul>
+
+<h3><strong>2. Why Admin Keys Instead of Sessions?</strong></h3>
+
+<ul>
+<li><strong>Shareable Links</strong>: Edit/delete URLs can be bookmarked or shared</li>
+<li><strong>No Server State</strong>: No session storage, scales horizontally</li>
+<li><strong>Email Delivery</strong>: Key sent immediately after creation</li>
+<li><strong>Security Trade-off</strong>: If key is lost, piece cannot be edited (acceptable for this use case)</li>
+</ul>
+
+<h3><strong>3. Why Both MySQL and SQLite?</strong></h3>
+
+<ul>
+<li><strong>Development Speed</strong>: SQLite works immediately on Replit (no config)</li>
+<li><strong>Production Scale</strong>: MySQL for Hostinger (better performance, shared hosting standard)</li>
+<li><strong>Platform Agnostic</strong>: Same code runs on both environments</li>
+<li><strong>Automatic Fallback</strong>: If MySQL unavailable, falls back to SQLite</li>
+</ul>
+
+<h3><strong>4. Why 1-Hour Cache?</strong></h3>
+
+<ul>
+<li><strong>Performance</strong>: Reduces database load for popular pieces</li>
+<li><strong>Cost</strong>: Fewer queries = lower hosting costs</li>
+<li><strong>Acceptable Trade-off</strong>: Art pieces rarely change after creation</li>
+<li><strong>Override</strong>: Users can hard refresh (Ctrl+F5) to see immediate updates</li>
+</ul>
+
+<h3><strong>5. Why Three.js?</strong></h3>
+
+<ul>
+<li><strong>WebGL Rendering</strong>: Hardware-accelerated 3D graphics in browser</li>
+<li><strong>No Plugins</strong>: Works in all modern browsers</li>
+<li><strong>Rich Ecosystem</strong>: Easy to add shapes, textures, lighting</li>
+<li><strong>Performance</strong>: Smooth animations at 60 FPS</li>
+</ul>
+
+<h3><strong>6. Why Email Notifications?</strong></h3>
+
+<ul>
+<li><strong>Admin Key Delivery</strong>: Must send key securely to user</li>
+<li><strong>Configuration Backup</strong>: Users can rebuild pieces from email</li>
+<li><strong>Audit Trail</strong>: Record of all create/edit/delete operations</li>
+<li><strong>No Dashboard Needed</strong>: Email provides all necessary information</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">🚀 Deployment Flow</h2>
+
+
+<h3><strong>Development (Replit)</strong></h3>
+
+<pre class="codebox mono"><code>1. Code is pushed to Replit
+2. SQLite database auto-created in app/data/
+3. No config.php needed (uses defaults)
+4. Access at https://replit-domain.replit.dev
+</code></pre>
+
+
+<h3><strong>Production (Hostinger)</strong></h3>
+
+<pre class="codebox mono"><code>1. Create MySQL database in cPanel
+2. Run CREATE TABLE SQL in phpMyAdmin
+3. Update app/lib/config.php with database credentials
+4. Upload files via FTP/File Manager
+5. Access at https://art.augmenthumankind.com
+</code></pre>
+
+
+<h3><strong>Zero-Downtime Deployment</strong></h3>
+
+<ul>
+<li>Database fallback ensures site stays up even if MySQL fails</li>
+<li>Caching means most requests don&#x27;t hit database</li>
+<li>No sessions = no state to preserve during deployment</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">📊 Data Flow Examples</h2>
+
+
+<h3><strong>Example 1: Create a Piece</strong></h3>
+
+<pre class="codebox mono"><code>1. User fills form on builder.html
+2. JavaScript builds config JSON:
+   {
+     bg: &quot;#000000&quot;,
+     bgImageUrl: &quot;https://example.com/stars.jpg&quot;,
+     shapes: [
+       {type: &quot;sphere&quot;, count: 50, size: 1.2, palette: {baseColor: &quot;#00ff00&quot;}}
+     ],
+     cameraZ: 10,
+     rotationSpeed: 0.01
+   }
+3. POST /api/pieces with {email, config, visibility: &quot;public&quot;}
+4. API generates slug = &quot;neon-sphere-1234&quot;
+5. API generates admin_key = &quot;6f094bb3af20bc0e...&quot;
+6. API inserts into database
+7. API sends email to user with admin key and URLs
+8. API responds with {slug, admin_key}
+9. Browser redirects to view.html?id=neon-sphere-1234
+10. view.html fetches piece via GET /api/pieces/neon-sphere-1234
+11. viewer.js renders 3D scene with config
+</code></pre>
+
+
+<h3><strong>Example 2: View a Piece</strong></h3>
+
+<pre class="codebox mono"><code>1. User visits view.html?id=neon-sphere-1234
+2. JavaScript extracts slug = &quot;neon-sphere-1234&quot;
+3. GET /api/pieces/neon-sphere-1234
+4. API checks cache (ETag)
+5. If cached and not modified → 304 Not Modified (no body)
+6. If not cached or modified → 200 OK with piece data
+7. JavaScript receives {id, slug, visibility, config}
+8. viewer.js initializes Three.js scene:
+   - Loads background image texture
+   - Creates 50 sphere meshes with green color
+   - Positions camera at z=10
+   - Starts animation loop (rotates shapes at 0.01 speed)
+9. Canvas displays animated 3D scene
+</code></pre>
+
+
+<h3><strong>Example 3: Edit a Piece</strong></h3>
+
+<pre class="codebox mono"><code>1. User clicks edit link from email
+2. Browser opens edit.html?id=neon-sphere-1234&amp;key=6f094bb3af20bc0e...
+3. JavaScript fetches piece via GET /api/pieces/neon-sphere-1234
+4. Form pre-fills with existing config
+5. User changes background color to #FF0000
+6. User submits form
+7. PATCH /api/pieces/neon-sphere-1234
+   Headers: X-Admin-Key: 6f094bb3af20bc0e...
+   Body: {config: {...updated config...}}
+8. API verifies admin key matches database
+9. If valid → Update database, send email, respond 200 OK
+10. If invalid → Respond 403 Forbidden &quot;Invalid admin key&quot;
+11. Browser redirects to view.html?id=neon-sphere-1234
+12. Note: Cache may still serve old version for up to 1 hour
+</code></pre>
+
+
+<h3><strong>Example 4: Embed a Piece</strong></h3>
+
+<pre class="codebox mono"><code>1. User receives embed code in creation email:
+   &lt;iframe src=&quot;https://art.augmenthumankind.com/embed.html?id=neon-sphere-1234&quot;
+           width=&quot;800&quot; height=&quot;600&quot; frameborder=&quot;0&quot;&gt;&lt;/iframe&gt;
+2. User pastes iframe code into their website/blog
+3. When page loads, iframe requests embed.html?id=neon-sphere-1234
+4. embed.html fetches piece (same as view.html)
+5. viewer.js renders 3D scene in iframe
+6. No navigation chrome, just pure 3D content
+7. Piece is interactive (can rotate with mouse if enabled)
+</code></pre>
+
+
+<hr />
+
+
+<h2 class="section-title">🧪 Testing Strategy</h2>
+
+
+<h3><strong>Manual Testing Checklist</strong></h3>
+
+<ul>
+<li>[ ] Create piece → Receive email with admin key</li>
+<li>[ ] View piece → 3D renders correctly</li>
+<li>[ ] Edit piece with correct key → Updates successfully</li>
+<li>[ ] Edit piece with wrong key → 403 error</li>
+<li>[ ] Delete piece with correct key → Removed successfully</li>
+<li>[ ] Delete piece with wrong key → 403 error</li>
+<li>[ ] Embed piece → Renders in iframe</li>
+<li>[ ] Hard refresh after edit → Shows updated config</li>
+<li>[ ] Background image → Displays correctly</li>
+<li>[ ] Texture on shapes → Displays correctly</li>
+</ul>
+
+<h3><strong>Edge Cases to Test</strong></h3>
+
+<ul>
+<li>Very long URLs (background/texture)</li>
+<li>Invalid email format</li>
+<li>Duplicate slug generation (retry logic)</li>
+<li>Rate limit exceeded (100+ requests)</li>
+<li>Cache behavior (1-hour expiry)</li>
+<li>MySQL unavailable (fallback to SQLite)</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">🔧 Maintenance &amp; Troubleshooting</h2>
+
+
+<h3><strong>Common Issues</strong></h3>
+
+
+<p><strong>1. &quot;Invalid admin key&quot; Error</strong></p>
+<ul>
+<li><strong>Cause</strong>: Admin key from email doesn&#x27;t match database</li>
+<li><strong>Solution</strong>: User must use key from creation email (not from older versions)</li>
+<li><strong>Prevention</strong>: Keys are tied to piece creation event (re-creating with same slug generates new key)</li>
+</ul>
+
+<p><strong>2. Changes Not Showing After Edit</strong></p>
+<ul>
+<li><strong>Cause</strong>: Browser cache (1-hour TTL)</li>
+<li><strong>Solution</strong>: Hard refresh (Ctrl+F5) or wait up to 1 hour</li>
+<li><strong>Note</strong>: This is expected behavior for performance</li>
+</ul>
+
+<p><strong>3. Email Not Received</strong></p>
+<ul>
+<li><strong>Cause</strong>: SMTP credentials incorrect or email blocked as spam</li>
+<li><strong>Solution</strong>: Check spam folder, verify SMTP config in app/lib/config.php</li>
+<li><strong>Debug</strong>: Check PHP error_log for SMTP errors</li>
+</ul>
+
+<p><strong>4. Database Connection Failed</strong></p>
+<ul>
+<li><strong>Cause</strong>: MySQL credentials incorrect or server unavailable</li>
+<li><strong>Solution</strong>: System automatically falls back to SQLite</li>
+<li><strong>Check</strong>: Visit /api/health to see current database driver</li>
+</ul>
+
+<p><strong>5. 3D Scene Not Rendering</strong></p>
+<ul>
+<li><strong>Cause</strong>: Invalid texture URL or WebGL not supported</li>
+<li><strong>Solution</strong>: Check browser console for errors, verify URLs are accessible</li>
+<li><strong>Fallback</strong>: Remove texture URL to use solid colors only</li>
+</ul>
+
+<h3><strong>Monitoring</strong></h3>
+
+<ul>
+<li>Check <code>/api/health</code> endpoint for database status</li>
+<li>Review PHP error_log for exceptions</li>
+<li>Monitor rate limit cache size (app/data/rate_limits)</li>
+<li>Check SQLite database size (app/data/pieces.sqlite)</li>
+</ul>
+
+<h3><strong>Scaling Considerations</strong></h3>
+
+<ul>
+<li><strong>Current</strong>: Single server, file-based rate limiting, SQLite fallback</li>
+<li><strong>Future</strong>: Redis for rate limiting, CDN for static assets, dedicated MySQL server</li>
+<li><strong>Database</strong>: SQLite works up to ~100K pieces, then migrate fully to MySQL</li>
+<li><strong>Caching</strong>: 1-hour cache handles high traffic (most requests never hit database)</li>
+</ul>
+
+<hr />
+
+
+<h2 class="section-title">📝 Summary for Interviews</h2>
+
+
+<p><strong>Elevator Pitch</strong>:</p>
+<p>&quot;I built a 3D art embedding platform using Three.js for rendering, PHP for the backend API, and a hybrid MySQL/SQLite database. Users can create interactive 3D scenes through a visual builder, then embed them anywhere via iframe. The system uses admin keys for authentication instead of user accounts, making it stateless and easily shareable. I implemented 1-hour caching for performance, email notifications for all operations, and designed the entire platform to be platform-agnostic so the same codebase runs on both development (Replit with SQLite) and production (Hostinger with MySQL) without any code changes.&quot;</p>
+
+<p><strong>Technical Highlights</strong>:</p>
+<ul>
+<li>✅ RESTful API with full CRUD operations</li>
+<li>✅ Stateless authentication via admin keys</li>
+<li>✅ Platform-agnostic database layer (MySQL/SQLite)</li>
+<li>✅ Three.js 3D rendering with textures and animations</li>
+<li>✅ Email notifications with native SMTP (no dependencies)</li>
+<li>✅ Rate limiting to prevent abuse</li>
+<li>✅ HTTP caching with ETag for performance</li>
+<li>✅ CORS configuration for cross-origin embedding</li>
+<li>✅ Security headers and input validation</li>
+<li>✅ Zero-configuration deployment on Replit</li>
+</ul>
+
+<p><strong>Design Philosophy</strong>:</p>
+<ul>
+<li><strong>Simplicity First</strong>: No user accounts, no complex authentication</li>
+<li><strong>Performance</strong>: 1-hour cache, optimized database queries</li>
+<li><strong>Security</strong>: Admin keys, rate limiting, input validation</li>
+<li><strong>Portability</strong>: Same code on dev and prod</li>
+<li><strong>User Experience</strong>: Email contains everything user needs (no dashboard required)</li>
+</ul>
+
+
+  </div>
+</body>
+</html>
