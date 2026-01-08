@@ -396,10 +396,24 @@ if (editorForm) {
       // Success - update original data with new data
       originalData = data;
 
-      setEditorMsg("✓ Changes saved successfully!", "success");
+      // Build configuration summary for backup
+      let configSummary = "📋 CONFIGURATION BACKUP (copy for your records):\n\n";
+      configSummary += "BACKGROUND\n";
+      configSummary += `• Color: ${payload.config.bg}\n`;
+      configSummary += `• Image URL: ${payload.config.bgImageUrl || '(none)'}\n\n`;
+      configSummary += "SHAPES\n";
+      payload.config.shapes.forEach((shape) => {
+        configSummary += `• ${shape.type.toUpperCase()}\n`;
+        configSummary += `  - Number of shapes: ${shape.count}\n`;
+        configSummary += `  - Size: ${shape.size}\n`;
+        configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
+        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+      });
 
-      // Auto-clear success message after 5 seconds
-      setTimeout(() => clearEditorMsg(), 5000);
+      setEditorMsg(`✓ Changes saved successfully! <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">View Configuration Backup</summary><pre style="margin-top:8px;background:rgba(0,0,0,0.35);padding:12px;border-radius:8px;white-space:pre-wrap;font-size:0.85em;">${configSummary}</pre></details>`, "success");
+
+      // Auto-clear success message after 15 seconds (longer due to config details)
+      setTimeout(() => clearEditorMsg(), 15000);
 
     } catch (err) {
       setEditorMsg(err?.message || "Save failed", "danger");

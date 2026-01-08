@@ -100,6 +100,11 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
   $fromName = "Augment Humankind";
   $subject = "Your 3D Art Piece Details";
 
+  // Get the current host with protocol
+  $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+  $baseUrl = "{$protocol}://{$host}";
+
   // Build email body
   $body = "Hello,\n\n";
   $body .= "Thank you for creating a 3D art piece! Here are your piece details:\n\n";
@@ -107,10 +112,20 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
   $body .= "Piece Slug: {$pieceSlug}\n";
   $body .= "Piece Admin Key: {$adminKey}\n\n";
   $body .= "IMPORTANT: Save this admin key! You will need it to edit or delete your piece.\n\n";
-  $body .= "You can:\n";
-  $body .= "- View your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/view.html?id={$pieceSlug}\n";
-  $body .= "- Edit your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/edit.html\n";
-  $body .= "- Delete your piece at: " . ($_SERVER['HTTP_HOST'] ?? 'localhost') . "/delete.html\n\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  $body .= "LINKS\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+  $body .= "View:   {$baseUrl}/view.html?id={$pieceSlug}\n";
+  $body .= "Edit:   {$baseUrl}/edit.html\n";
+  $body .= "Delete: {$baseUrl}/delete.html\n\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  $body .= "EMBED CODES (Copy & Paste)\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+  $body .= "Using Slug:\n";
+  $body .= "<iframe src=\"{$baseUrl}/view.html?id={$pieceSlug}\" width=\"800\" height=\"600\" frameborder=\"0\"></iframe>\n\n";
+  $body .= "Using ID:\n";
+  $body .= "<iframe src=\"{$baseUrl}/view.html?id={$pieceId}\" width=\"800\" height=\"600\" frameborder=\"0\"></iframe>\n\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
   $body .= "Best regards,\n";
   $body .= "Augment Humankind";
 
@@ -143,6 +158,58 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
     return (bool)$sent;
   } catch (Throwable $e) {
     error_log("Email send failed: " . $e->getMessage());
+    return false;
+  }
+}
+
+/**
+ * Send deletion notification email BEFORE deleting a piece.
+ * This must be called before deletion since the email address won't be accessible afterward.
+ */
+function send_piece_deleted_email(string $toEmail, int $pieceId, string $pieceSlug): bool {
+  $from = "contact@augmenthumankind.com";
+  $fromName = "Augment Humankind";
+  $subject = "Your 3D Art Piece Has Been Deleted";
+
+  // Build email body
+  $body = "Hello,\n\n";
+  $body .= "This is to confirm that your 3D art piece has been permanently deleted:\n\n";
+  $body .= "Piece ID: {$pieceId}\n";
+  $body .= "Piece Slug: {$pieceSlug}\n\n";
+  $body .= "The piece and all associated data have been removed from our system.\n\n";
+  $body .= "If this deletion was made in error, please contact us immediately.\n\n";
+  $body .= "Best regards,\n";
+  $body .= "Augment Humankind";
+
+  // Load SMTP config from env vars or config.php
+  $smtpCfg = load_smtp_config();
+  $smtpHost = (string)$smtpCfg["SMTP_HOST"];
+  $smtpUser = (string)$smtpCfg["SMTP_USER"];
+  $smtpPass = (string)$smtpCfg["SMTP_PASS"];
+  $smtpPort = (int)$smtpCfg["SMTP_PORT"];
+
+  // Try SMTP first if credentials are available
+  if ($smtpHost && $smtpUser && $smtpPass) {
+    try {
+      return send_smtp_email($smtpHost, $smtpPort, $smtpUser, $smtpPass, $from, $fromName, $toEmail, $subject, $body);
+    } catch (Throwable $e) {
+      error_log("SMTP send failed for deletion email, trying mail(): " . $e->getMessage());
+      // Fall through to mail() attempt
+    }
+  }
+
+  // Fallback to PHP mail() function (works on Hostinger by default)
+  try {
+    $headers = "From: {$fromName} <{$from}>\r\n";
+    $headers .= "Reply-To: {$from}\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    $sent = mail($toEmail, $subject, $body, $headers);
+    return (bool)$sent;
+  } catch (Throwable $e) {
+    error_log("Deletion email send failed: " . $e->getMessage());
     return false;
   }
 }
