@@ -85,6 +85,40 @@ function load_smtp_config(): array {
 }
 
 /**
+ * Format configuration details for email body.
+ * Returns a formatted string with background and shape specifications.
+ */
+function format_config_for_email(array $config): string {
+  $output = "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  $output .= "CONFIGURATION DETAILS\n";
+  $output .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  // Background
+  $output .= "BACKGROUND:\n";
+  $output .= "• Color: " . ($config['bg'] ?? '#000000') . "\n";
+  $output .= "• Image URL: " . ($config['bgImageUrl'] ?? '(none)') . "\n\n";
+
+  // Shapes
+  $output .= "SHAPES:\n";
+  if (isset($config['shapes']) && is_array($config['shapes'])) {
+    foreach ($config['shapes'] as $shape) {
+      $shapeType = ucfirst($shape['type'] ?? 'unknown');
+      $output .= "• {$shapeType}\n";
+      $output .= "  - Number of shapes: " . ($shape['count'] ?? 0) . "\n";
+      $output .= "  - Size: " . ($shape['size'] ?? 1.0) . "\n";
+      $output .= "  - Base color: " . ($shape['palette']['baseColor'] ?? '#ffffff') . "\n";
+      $output .= "  - Texture URL: " . ($shape['textureUrl'] ?? '(none)') . "\n";
+    }
+  } else {
+    $output .= "(No shapes configured)\n";
+  }
+
+  $output .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  return $output;
+}
+
+/**
  * Send piece creation confirmation email with admin key.
  *
  * Uses SMTP if credentials are available, otherwise falls back to PHP's mail() function.
@@ -95,7 +129,7 @@ function load_smtp_config(): array {
  *
  * On Hostinger shared hosting, mail() typically works without SMTP credentials.
  */
-function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSlug, string $adminKey): bool {
+function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSlug, string $adminKey, array $config): bool {
   $from = "contact@augmenthumankind.com";
   $fromName = "Augment Humankind";
   $subject = "Your 3D Art Piece Details";
@@ -126,6 +160,10 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
   $body .= "Using ID:\n";
   $body .= "<iframe src=\"{$baseUrl}/view.html?id={$pieceId}\" width=\"800\" height=\"600\" frameborder=\"0\"></iframe>\n\n";
   $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  // Add configuration details
+  $body .= format_config_for_email($config);
+
   $body .= "Best regards,\n";
   $body .= "Augment Humankind";
 
@@ -163,10 +201,76 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
 }
 
 /**
+ * Send update notification email after editing a piece.
+ * Includes the updated configuration details.
+ */
+function send_piece_updated_email(string $toEmail, int $pieceId, string $pieceSlug, array $config): bool {
+  $from = "contact@augmenthumankind.com";
+  $fromName = "Augment Humankind";
+  $subject = "Your 3D Art Piece Has Been Updated";
+
+  // Get the current host with protocol
+  $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+  $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+  $baseUrl = "{$protocol}://{$host}";
+
+  // Build email body
+  $body = "Hello,\n\n";
+  $body .= "This is to confirm that your 3D art piece has been successfully updated:\n\n";
+  $body .= "Piece ID: {$pieceId}\n";
+  $body .= "Piece Slug: {$pieceSlug}\n\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+  $body .= "LINKS\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+  $body .= "View:   {$baseUrl}/view.html?id={$pieceSlug}\n";
+  $body .= "Edit:   {$baseUrl}/edit.html\n";
+  $body .= "Delete: {$baseUrl}/delete.html\n\n";
+  $body .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+  // Add UPDATED configuration details
+  $body .= format_config_for_email($config);
+
+  $body .= "Best regards,\n";
+  $body .= "Augment Humankind";
+
+  // Load SMTP config from env vars or config.php
+  $smtpCfg = load_smtp_config();
+  $smtpHost = (string)$smtpCfg["SMTP_HOST"];
+  $smtpUser = (string)$smtpCfg["SMTP_USER"];
+  $smtpPass = (string)$smtpCfg["SMTP_PASS"];
+  $smtpPort = (int)$smtpCfg["SMTP_PORT"];
+
+  // Try SMTP first if credentials are available
+  if ($smtpHost && $smtpUser && $smtpPass) {
+    try {
+      return send_smtp_email($smtpHost, $smtpPort, $smtpUser, $smtpPass, $from, $fromName, $toEmail, $subject, $body);
+    } catch (Throwable $e) {
+      error_log("SMTP send failed for update email, trying mail(): " . $e->getMessage());
+      // Fall through to mail() attempt
+    }
+  }
+
+  // Fallback to PHP mail() function (works on Hostinger by default)
+  try {
+    $headers = "From: {$fromName} <{$from}>\r\n";
+    $headers .= "Reply-To: {$from}\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
+    $sent = mail($toEmail, $subject, $body, $headers);
+    return (bool)$sent;
+  } catch (Throwable $e) {
+    error_log("Update email send failed: " . $e->getMessage());
+    return false;
+  }
+}
+
+/**
  * Send deletion notification email BEFORE deleting a piece.
  * This must be called before deletion since the email address won't be accessible afterward.
  */
-function send_piece_deleted_email(string $toEmail, int $pieceId, string $pieceSlug): bool {
+function send_piece_deleted_email(string $toEmail, int $pieceId, string $pieceSlug, array $config): bool {
   $from = "contact@augmenthumankind.com";
   $fromName = "Augment Humankind";
   $subject = "Your 3D Art Piece Has Been Deleted";
@@ -177,7 +281,11 @@ function send_piece_deleted_email(string $toEmail, int $pieceId, string $pieceSl
   $body .= "Piece ID: {$pieceId}\n";
   $body .= "Piece Slug: {$pieceSlug}\n\n";
   $body .= "The piece and all associated data have been removed from our system.\n\n";
-  $body .= "If this deletion was made in error, please contact us immediately.\n\n";
+  $body .= "If this deletion was made in error, you can recreate it using the configuration details below.\n\n";
+
+  // Add configuration details BEFORE deletion
+  $body .= format_config_for_email($config);
+
   $body .= "Best regards,\n";
   $body .= "Augment Humankind";
 

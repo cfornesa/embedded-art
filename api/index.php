@@ -183,8 +183,8 @@ try {
 
       $pieceId = (int)$pdo->lastInsertId();
 
-      // Send confirmation email with piece details
-      $emailSent = send_piece_created_email($email, $pieceId, $slug, $adminKey);
+      // Send confirmation email with piece details and configuration
+      $emailSent = send_piece_created_email($email, $pieceId, $slug, $adminKey, $config);
 
       Logger::audit('piece_created', [
         'id' => $pieceId,
@@ -301,12 +301,12 @@ try {
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
-    // Fetch existing piece to verify ownership and get current data
+    // Fetch existing piece to verify ownership and get current data (including email for notification)
     if (is_numeric_id($ref)) {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at FROM pieces WHERE id = :id LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at, email FROM pieces WHERE id = :id LIMIT 1");
       $stmt->execute([":id" => (int)$ref]);
     } else {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at, email FROM pieces WHERE slug = :slug LIMIT 1");
       $stmt->execute([":slug" => $ref]);
     }
 
@@ -356,11 +356,25 @@ try {
       ]);
     }
 
+    // Send update notification email with new configuration
+    $emailSent = false;
+    $email = (string)($row['email'] ?? '');
+    if ($email !== '') {
+      try {
+        $emailSent = send_piece_updated_email($email, (int)$row['id'], (string)$row['slug'], $newConfig);
+      } catch (Throwable $e) {
+        error_log("Failed to send update email: " . $e->getMessage());
+        // Continue even if email fails
+      }
+    }
+
     Logger::audit('piece_updated', [
       'id' => (int)$row['id'],
       'slug' => (string)$row['slug'],
       'ref' => $ref,
       'visibility' => $newVisibility,
+      'email' => $email,
+      'email_sent' => $emailSent,
       'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
     ]);
 
@@ -381,13 +395,13 @@ try {
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
-    // Fetch piece details including email for deletion notification
-    // IMPORTANT: Must fetch email BEFORE deletion since it won't be accessible afterward
+    // Fetch piece details including email and config for deletion notification
+    // IMPORTANT: Must fetch everything BEFORE deletion since it won't be accessible afterward
     if (is_numeric_id($ref)) {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email FROM pieces WHERE id = :id LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email, config_json FROM pieces WHERE id = :id LIMIT 1");
       $stmt->execute([":id" => (int)$ref]);
     } else {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, email, config_json FROM pieces WHERE slug = :slug LIMIT 1");
       $stmt->execute([":slug" => $ref]);
     }
 
@@ -398,12 +412,22 @@ try {
       respond(403, ["error" => "Invalid admin key"]);
     }
 
+    // Parse configuration for email notification
+    $config = [];
+    try {
+      $configJson = (string)($row['config_json'] ?? '{}');
+      $config = json_decode($configJson, true) ?? [];
+    } catch (Throwable $e) {
+      error_log("Failed to parse config for deletion email: " . $e->getMessage());
+      // Continue with deletion even if config parsing fails
+    }
+
     // Send deletion notification email BEFORE deleting the piece
     $emailSent = false;
     $email = (string)($row['email'] ?? '');
     if ($email !== '') {
       try {
-        $emailSent = send_piece_deleted_email($email, (int)$row['id'], (string)$row['slug']);
+        $emailSent = send_piece_deleted_email($email, (int)$row['id'], (string)$row['slug'], $config);
       } catch (Throwable $e) {
         error_log("Failed to send deletion email: " . $e->getMessage());
         // Continue with deletion even if email fails
