@@ -292,10 +292,10 @@ try {
 
     // Fetch existing piece to verify ownership and get current data
     if (is_numeric_id($ref)) {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config, created_at FROM pieces WHERE id = :id LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at FROM pieces WHERE id = :id LIMIT 1");
       $stmt->execute([":id" => (int)$ref]);
     } else {
-      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config, created_at FROM pieces WHERE slug = :slug LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id, slug, admin_key, visibility, config_json, created_at FROM pieces WHERE slug = :slug LIMIT 1");
       $stmt->execute([":slug" => $ref]);
     }
 

@@ -59,17 +59,18 @@ function validate_email(string $email): string {
 /**
  * Send piece creation confirmation email with admin key.
  *
- * PRODUCTION NOTE: PHP's mail() function requires a configured mail server.
- * On shared hosting (Hostinger), this typically works out of the box.
- * On Replit or other platforms, you may need to:
- * 1. Use an SMTP library (PHPMailer, SwiftMailer)
- * 2. Use a transactional email service (SendGrid, Mailgun, AWS SES)
- * 3. Configure environment variables for SMTP settings
+ * Uses SMTP if credentials are available (SMTP_HOST, SMTP_USER, SMTP_PASS),
+ * otherwise falls back to PHP's mail() function.
  *
- * For now, this uses native mail() with proper headers.
+ * Environment variables:
+ * - SMTP_HOST: SMTP server hostname
+ * - SMTP_PORT: SMTP port (default: 587 for TLS, 465 for SSL)
+ * - SMTP_USER: SMTP username
+ * - SMTP_PASS: SMTP password
  */
 function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSlug, string $adminKey): bool {
   $from = "contact@augmenthumankind.com";
+  $fromName = "Augment Humankind";
   $subject = "Your 3D Art Piece Details";
 
   // Build email body
@@ -86,21 +87,114 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
   $body .= "Best regards,\n";
   $body .= "Augment Humankind";
 
-  // Set headers
-  $headers = "From: {$from}\r\n";
-  $headers .= "Reply-To: {$from}\r\n";
-  $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
-  $headers .= "MIME-Version: 1.0\r\n";
-  $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+  // Try SMTP first if credentials are available
+  $smtpHost = getenv('SMTP_HOST') ?: '';
+  $smtpUser = getenv('SMTP_USER') ?: '';
+  $smtpPass = getenv('SMTP_PASS') ?: '';
+  $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
 
-  // Attempt to send email
+  if ($smtpHost && $smtpUser && $smtpPass) {
+    try {
+      return send_smtp_email($smtpHost, $smtpPort, $smtpUser, $smtpPass, $from, $fromName, $toEmail, $subject, $body);
+    } catch (Throwable $e) {
+      error_log("SMTP send failed, trying mail(): " . $e->getMessage());
+      // Fall through to mail() attempt
+    }
+  }
+
+  // Fallback to PHP mail() function
   try {
+    $headers = "From: {$fromName} <{$from}>\r\n";
+    $headers .= "Reply-To: {$from}\r\n";
+    $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
+    $headers .= "MIME-Version: 1.0\r\n";
+    $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
+
     $sent = mail($toEmail, $subject, $body, $headers);
     return (bool)$sent;
   } catch (Throwable $e) {
-    // Log error but don't fail the request
     error_log("Email send failed: " . $e->getMessage());
     return false;
+  }
+}
+
+/**
+ * Send email via SMTP using raw socket connection.
+ * This is a simple SMTP client implementation that works without external dependencies.
+ */
+function send_smtp_email(string $host, int $port, string $username, string $password, string $from, string $fromName, string $to, string $subject, string $body): bool {
+  // Connect to SMTP server
+  $smtp = @fsockopen($host, $port, $errno, $errstr, 10);
+  if (!$smtp) {
+    throw new Exception("Failed to connect to SMTP server: {$errstr} ({$errno})");
+  }
+
+  // Helper function to read SMTP response
+  $read = function() use ($smtp) {
+    $response = '';
+    while ($line = fgets($smtp, 515)) {
+      $response .= $line;
+      if (substr($line, 3, 1) === ' ') break;
+    }
+    return $response;
+  };
+
+  // Helper function to send SMTP command
+  $send = function(string $cmd) use ($smtp, $read) {
+    fwrite($smtp, $cmd . "\r\n");
+    return $read();
+  };
+
+  try {
+    // Read greeting
+    $read();
+
+    // EHLO
+    $send("EHLO " . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+
+    // STARTTLS if port 587
+    if ($port == 587) {
+      $send("STARTTLS");
+      stream_socket_enable_crypto($smtp, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
+      $send("EHLO " . ($_SERVER['HTTP_HOST'] ?? 'localhost'));
+    }
+
+    // AUTH LOGIN
+    $send("AUTH LOGIN");
+    $send(base64_encode($username));
+    $send(base64_encode($password));
+
+    // MAIL FROM
+    $send("MAIL FROM: <{$from}>");
+
+    // RCPT TO
+    $send("RCPT TO: <{$to}>");
+
+    // DATA
+    $send("DATA");
+
+    // Email headers and body
+    $message = "From: {$fromName} <{$from}>\r\n";
+    $message .= "To: <{$to}>\r\n";
+    $message .= "Subject: {$subject}\r\n";
+    $message .= "MIME-Version: 1.0\r\n";
+    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $message .= "\r\n";
+    $message .= $body;
+    $message .= "\r\n.\r\n";
+
+    fwrite($smtp, $message);
+    $read();
+
+    // QUIT
+    $send("QUIT");
+
+    fclose($smtp);
+    return true;
+
+  } catch (Throwable $e) {
+    if (is_resource($smtp)) fclose($smtp);
+    throw $e;
   }
 }
 
