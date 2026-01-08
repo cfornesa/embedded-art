@@ -131,8 +131,21 @@ async function loadTextureFromUrl(url) {
     }, 10000);
 
     const loader = new THREE.TextureLoader();
-    // Enable CORS for cross-origin textures
-    loader.crossOrigin = 'anonymous';
+
+    // Only use CORS for cross-origin images
+    // Same-origin images work without CORS, cross-origin images without CORS will fail gracefully
+    try {
+      const imageUrl = new URL(url, window.location.href);
+      const isSameOrigin = imageUrl.origin === window.location.origin;
+
+      // Only set crossOrigin for cross-origin images
+      if (!isSameOrigin) {
+        loader.crossOrigin = 'anonymous';
+      }
+    } catch (e) {
+      // If URL parsing fails, try with CORS anyway
+      loader.crossOrigin = 'anonymous';
+    }
 
     loader.load(
       url,
