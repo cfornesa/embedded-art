@@ -14,11 +14,21 @@ header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 
-// CORS headers (adjust for your domains in production)
-$allowed_origins = is_replit() ? ['*'] : [
-  'https://your-production-domain.com',
-  'https://your-staging-domain.com'
-];
+// Load API configuration from environment variables and/or config.php
+$apiConfig = [];
+$configFile = __DIR__ . "/../app/lib/config.php";
+if (file_exists($configFile)) {
+  $fileConfig = require $configFile;
+  if (is_array($fileConfig)) {
+    $apiConfig = $fileConfig;
+  }
+}
+
+// CORS headers
+// Configure via environment variable ALLOWED_ORIGINS (comma-separated) or config.php
+// Defaults to '*' (allow all) if not configured - set specific origins in production
+$allowedOriginsEnv = getenv('ALLOWED_ORIGINS') ?: ($apiConfig['ALLOWED_ORIGINS'] ?? '');
+$allowed_origins = $allowedOriginsEnv ? array_map('trim', explode(',', $allowedOriginsEnv)) : ['*'];
 
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 if (in_array('*', $allowed_origins, true) || in_array($origin, $allowed_origins, true)) {
@@ -65,8 +75,9 @@ try {
   }
 
   // GET /api/debug/db  (dev-only; never requires DB connection)
+  // Enable by setting environment variable ENABLE_DEBUG_ENDPOINTS=1 or in config.php
   if ($method === "GET" && $resource === "debug" && (($segments[2] ?? "") === "db")) {
-    $debugEnabled = is_replit() || (getenv("ENABLE_DEBUG_ENDPOINTS") === "1");
+    $debugEnabled = (getenv("ENABLE_DEBUG_ENDPOINTS") === "1") || ($apiConfig['ENABLE_DEBUG_ENDPOINTS'] ?? '') === '1';
     if (!$debugEnabled) respond(404, ["error" => "Not found"]);
 
     if (!function_exists("db_debug_info")) {
@@ -330,14 +341,14 @@ try {
 
     // Update the piece
     if (is_numeric_id($ref)) {
-      $update = $pdo->prepare("UPDATE pieces SET config = :config, visibility = :visibility WHERE id = :id");
+      $update = $pdo->prepare("UPDATE pieces SET config_json = :config, visibility = :visibility WHERE id = :id");
       $update->execute([
         ":config" => $configJson,
         ":visibility" => $newVisibility,
         ":id" => (int)$ref
       ]);
     } else {
-      $update = $pdo->prepare("UPDATE pieces SET config = :config, visibility = :visibility WHERE slug = :slug");
+      $update = $pdo->prepare("UPDATE pieces SET config_json = :config, visibility = :visibility WHERE slug = :slug");
       $update->execute([
         ":config" => $configJson,
         ":visibility" => $newVisibility,

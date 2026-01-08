@@ -49,6 +49,19 @@ return [
   // 'SMTP_PORT' => 587,
   // 'SMTP_USER' => 'your-email@gmail.com',
   // 'SMTP_PASS' => 'your-app-password',
+
+  // ================================
+  // CORS (OPTIONAL)
+  // ================================
+  // Defaults to '*' (allow all origins) if not set.
+  // For production, set specific allowed origins (comma-separated string):
+  // 'ALLOWED_ORIGINS' => 'https://yourdomain.com,https://www.yourdomain.com',
+
+  // ================================
+  // DEBUG ENDPOINTS (OPTIONAL)
+  // ================================
+  // Enable /api/debug/db endpoint for troubleshooting:
+  // 'ENABLE_DEBUG_ENDPOINTS' => '1',
 ];
 ```
 
@@ -57,18 +70,9 @@ return [
 chmod 600 app/lib/config.php  # Only owner can read
 ```
 
-## Step 3: Update CORS Origins
+**Note:** All configuration (database, SMTP, CORS, debug) is now in config.php. No code changes needed between Replit and Hostinger!
 
-**File:** `api/index.php` (lines 18-21)
-
-```php
-$allowed_origins = is_replit() ? ['*'] : [
-  'https://yourdomain.com',           // ← Your domain
-  'https://www.yourdomain.com'        // ← With www
-];
-```
-
-## Step 4: Verify .htaccess
+## Step 3: Verify .htaccess
 
 Ensure `.htaccess` is uploaded to root:
 ```apache
@@ -84,7 +88,7 @@ RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 Options -Indexes
 ```
 
-## Step 5: Test Database Connection
+## Step 4: Test Database Connection
 
 Visit: `https://yourdomain.com/api/health`
 
@@ -106,7 +110,7 @@ Visit: `https://yourdomain.com/api/health`
 ```
 → MySQL credentials are wrong or MySQL not reachable, but app still works via SQLite
 
-## Step 6: Verify Schema Created
+## Step 5: Verify Schema Created
 
 The schema is created automatically on first connection.
 
@@ -119,7 +123,7 @@ DESCRIBE pieces;
 -- Should show all columns including indexes
 ```
 
-## Step 7: Test API Endpoints
+## Step 6: Test API Endpoints
 
 ```bash
 # Health check
@@ -150,7 +154,7 @@ curl -X POST https://yourdomain.com/api/pieces \
 curl https://yourdomain.com/api/pieces/test-piece
 ```
 
-## Step 8: Test Builder UI
+## Step 7: Test Builder UI
 
 1. Visit: `https://yourdomain.com/builder.html`
 2. Create a test piece
@@ -158,7 +162,7 @@ curl https://yourdomain.com/api/pieces/test-piece
 4. Test embed URLs
 5. Test delete functionality
 
-## Step 9: Monitor Logs
+## Step 8: Monitor Logs
 
 Check PHP error log for any issues:
 ```bash
@@ -167,7 +171,7 @@ tail -f /path/to/error_log
 
 Look for structured JSON logs from Logger class.
 
-## Step 10: Security Hardening (Optional)
+## Step 9: Security Hardening (Optional)
 
 ### Force HTTPS (add to .htaccess):
 ```apache
@@ -217,14 +221,17 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 ## Platform Differences
 
-| Feature | Replit | Hostinger |
-|---------|--------|-----------|
-| **Database** | SQLite (auto) | MySQL (configured) |
-| **Config** | None needed | config.php required |
-| **CORS** | Wide open (`*`) | Specific domains |
-| **Debug endpoints** | Enabled | Disabled (set env var) |
-| **Rate limiting** | Skipped | Active |
+The code is **100% platform-agnostic**. All differences are configured via environment variables or `config.php`:
+
+| Configuration | Replit | Hostinger |
+|---------------|--------|-----------|
+| **Database** | SQLite (auto-fallback) | MySQL via config.php |
+| **SMTP** | config.php or env vars | config.php or env vars |
+| **CORS** | Defaults to `*` | Set ALLOWED_ORIGINS in config.php |
+| **Debug endpoints** | Set ENABLE_DEBUG_ENDPOINTS=1 | Set ENABLE_DEBUG_ENDPOINTS=1 |
 | **File permissions** | Auto | Manual (`chmod`) |
+
+**No code changes needed between platforms!** Just configure via config.php or environment variables.
 
 ---
 
@@ -255,4 +262,4 @@ If issues occur:
 
 ---
 
-**The code is designed to work identically on both platforms** - only the database backend changes transparently.
+**The code is 100% platform-agnostic and requires ZERO code changes between Replit and Hostinger.** All platform-specific configuration is handled via environment variables or config.php. The same exact codebase runs on both platforms.
