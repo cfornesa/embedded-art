@@ -64,6 +64,21 @@ form.addEventListener("submit", async (e) => {
   if (!adminKey) return setMsg("Admin key is required.", "warning");
   if (confirmText !== "DELETE") return setMsg('Type "DELETE" exactly to confirm.', "warning");
 
+  setMsg("Fetching piece data before deletion…", "info");
+
+  // First, fetch the piece to get configuration backup BEFORE deletion
+  let pieceData = null;
+  try {
+    const lookupRes = await fetch(`/api/pieces/${encodeURIComponent(ref)}`, {
+      headers: { "X-Admin-Key": adminKey }
+    });
+    if (lookupRes.ok) {
+      pieceData = await lookupRes.json().catch(() => null);
+    }
+  } catch (err) {
+    // Continue with deletion even if lookup fails
+  }
+
   setMsg("Deleting…", "warning");
 
   const res = await fetch(`/api/pieces/${encodeURIComponent(ref)}`, {
@@ -78,5 +93,32 @@ form.addEventListener("submit", async (e) => {
   }
 
   lookupPanel.classList.add("d-none");
-  setMsg("✓ Piece permanently deleted. All data has been removed from the database. The slug is now available for reuse.", "success");
+
+  // Build configuration summary for backup (if we got the data)
+  let successMsg = "✓ Piece permanently deleted. All data has been removed from the database. The slug is now available for reuse.";
+
+  if (pieceData && pieceData.config) {
+    const cfg = pieceData.config;
+    let configSummary = "📋 DELETED PIECE BACKUP (copy for your records):\n\n";
+    configSummary += `PIECE INFO\n`;
+    configSummary += `• ID: ${pieceData.id || 'N/A'}\n`;
+    configSummary += `• Slug: ${pieceData.slug || 'N/A'}\n\n`;
+    configSummary += "BACKGROUND\n";
+    configSummary += `• Color: ${cfg.bg || '#000000'}\n`;
+    configSummary += `• Image URL: ${cfg.bgImageUrl || '(none)'}\n\n`;
+    configSummary += "SHAPES\n";
+    if (cfg.shapes && Array.isArray(cfg.shapes)) {
+      cfg.shapes.forEach((shape) => {
+        configSummary += `• ${shape.type ? shape.type.toUpperCase() : 'UNKNOWN'}\n`;
+        configSummary += `  - Number of shapes: ${shape.count || 0}\n`;
+        configSummary += `  - Size: ${shape.size || 1}\n`;
+        configSummary += `  - Base color: ${shape.palette?.baseColor || '#ffffff'}\n`;
+        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+      });
+    }
+
+    successMsg += ` <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">View Deleted Piece Backup</summary><pre style="margin-top:8px;background:rgba(0,0,0,0.35);padding:12px;border-radius:8px;white-space:pre-wrap;font-size:0.85em;">${configSummary}</pre></details>`;
+  }
+
+  setMsg(successMsg, "success");
 });
