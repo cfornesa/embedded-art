@@ -57,16 +57,43 @@ function validate_email(string $email): string {
 }
 
 /**
+ * Load SMTP configuration from environment variables and optionally app/lib/config.php.
+ * Same pattern as database config loading.
+ */
+function load_smtp_config(): array {
+  $cfg = [
+    "SMTP_HOST" => getenv("SMTP_HOST") ?: "",
+    "SMTP_PORT" => (int)(getenv("SMTP_PORT") ?: 587),
+    "SMTP_USER" => getenv("SMTP_USER") ?: "",
+    "SMTP_PASS" => getenv("SMTP_PASS") ?: "",
+  ];
+
+  // Load from config.php if it exists (for Hostinger)
+  $file = __DIR__ . "/config.php";
+  if (file_exists($file)) {
+    $fileCfg = require $file;
+    if (is_array($fileCfg)) {
+      // Merge SMTP settings from config.php
+      if (isset($fileCfg["SMTP_HOST"])) $cfg["SMTP_HOST"] = $fileCfg["SMTP_HOST"];
+      if (isset($fileCfg["SMTP_PORT"])) $cfg["SMTP_PORT"] = (int)$fileCfg["SMTP_PORT"];
+      if (isset($fileCfg["SMTP_USER"])) $cfg["SMTP_USER"] = $fileCfg["SMTP_USER"];
+      if (isset($fileCfg["SMTP_PASS"])) $cfg["SMTP_PASS"] = $fileCfg["SMTP_PASS"];
+    }
+  }
+
+  return $cfg;
+}
+
+/**
  * Send piece creation confirmation email with admin key.
  *
- * Uses SMTP if credentials are available (SMTP_HOST, SMTP_USER, SMTP_PASS),
- * otherwise falls back to PHP's mail() function.
+ * Uses SMTP if credentials are available, otherwise falls back to PHP's mail() function.
  *
- * Environment variables:
- * - SMTP_HOST: SMTP server hostname
- * - SMTP_PORT: SMTP port (default: 587 for TLS, 465 for SSL)
- * - SMTP_USER: SMTP username
- * - SMTP_PASS: SMTP password
+ * SMTP credentials can be provided via:
+ * 1. Environment variables (Replit Secrets): SMTP_HOST, SMTP_USER, SMTP_PASS, SMTP_PORT
+ * 2. app/lib/config.php (Hostinger): return array with SMTP_* keys
+ *
+ * On Hostinger shared hosting, mail() typically works without SMTP credentials.
  */
 function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSlug, string $adminKey): bool {
   $from = "contact@augmenthumankind.com";
@@ -87,12 +114,14 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
   $body .= "Best regards,\n";
   $body .= "Augment Humankind";
 
-  // Try SMTP first if credentials are available
-  $smtpHost = getenv('SMTP_HOST') ?: '';
-  $smtpUser = getenv('SMTP_USER') ?: '';
-  $smtpPass = getenv('SMTP_PASS') ?: '';
-  $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
+  // Load SMTP config from env vars or config.php
+  $smtpCfg = load_smtp_config();
+  $smtpHost = (string)$smtpCfg["SMTP_HOST"];
+  $smtpUser = (string)$smtpCfg["SMTP_USER"];
+  $smtpPass = (string)$smtpCfg["SMTP_PASS"];
+  $smtpPort = (int)$smtpCfg["SMTP_PORT"];
 
+  // Try SMTP first if credentials are available
   if ($smtpHost && $smtpUser && $smtpPass) {
     try {
       return send_smtp_email($smtpHost, $smtpPort, $smtpUser, $smtpPass, $from, $fromName, $toEmail, $subject, $body);
@@ -102,7 +131,7 @@ function send_piece_created_email(string $toEmail, int $pieceId, string $pieceSl
     }
   }
 
-  // Fallback to PHP mail() function
+  // Fallback to PHP mail() function (works on Hostinger by default)
   try {
     $headers = "From: {$fromName} <{$from}>\r\n";
     $headers .= "Reply-To: {$from}\r\n";
