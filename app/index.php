@@ -37,8 +37,9 @@ try {
   }
 
   // GET /api/debug/db  (dev-only; never requires DB connection)
+  // Enable by setting environment variable ENABLE_DEBUG_ENDPOINTS=1
   if ($method === "GET" && $resource === "debug" && (($segments[2] ?? "") === "db")) {
-    $debugEnabled = is_replit() || (getenv("ENABLE_DEBUG_ENDPOINTS") === "1");
+    $debugEnabled = (getenv("ENABLE_DEBUG_ENDPOINTS") === "1");
     if (!$debugEnabled) respond(404, ["error" => "Not found"]);
 
     if (!function_exists("db_debug_info")) {
