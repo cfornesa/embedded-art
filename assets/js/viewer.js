@@ -125,6 +125,11 @@ function clear() {
 
 async function loadTextureFromUrl(url) {
   return new Promise((resolve, reject) => {
+    // Timeout after 10 seconds to prevent hanging
+    const timeout = setTimeout(() => {
+      reject(new Error(`Texture loading timed out (10s): ${url}`));
+    }, 10000);
+
     const loader = new THREE.TextureLoader();
     // Enable CORS for cross-origin textures
     loader.crossOrigin = 'anonymous';
@@ -132,12 +137,19 @@ async function loadTextureFromUrl(url) {
     loader.load(
       url,
       (t) => {
+        clearTimeout(timeout);
+        // Validate that we got a real texture object
+        if (!t || !t.image) {
+          reject(new Error(`Invalid texture object received from ${url}`));
+          return;
+        }
         t.colorSpace = THREE.SRGBColorSpace;
         t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
         resolve(t);
       },
       undefined,
       (err) => {
+        clearTimeout(timeout);
         // Provide more detailed error information
         reject(new Error(`Texture failed to load from ${url}: ${err?.message || 'Unknown error'}`));
       }
@@ -162,13 +174,20 @@ async function buildFromPiece(piece) {
   // Load background image if provided
   if (config.bgImageUrl) {
     try {
+      console.log("Loading background image:", config.bgImageUrl);
       const bgTexture = await loadTextureFromUrl(config.bgImageUrl);
-      if (bgTexture) {
+      // Validate texture before applying
+      if (bgTexture && bgTexture.image) {
         scene.background = bgTexture;
+        console.log("✓ Background image loaded successfully");
+      } else {
+        console.warn("✗ Invalid background texture object, using background color");
+        scene.background = null;
       }
     } catch (err) {
-      console.warn("Failed to load background image:", err);
+      console.warn("✗ Failed to load background image, using background color:", err.message);
       // Keep using the background color as fallback
+      scene.background = null;
     }
   } else {
     // No background image - use solid color
@@ -220,7 +239,8 @@ async function buildFromPiece(piece) {
           opacity: Math.random() * 0.65 + 0.35
         });
 
-        if (texture) {
+        // Only apply texture if it's a valid texture object with an image
+        if (texture && texture.image) {
           mat.map = texture;
           mat.color.set("#ffffff");
           mat.needsUpdate = true;
@@ -275,7 +295,8 @@ async function buildFromPiece(piece) {
       opacity: Math.random() * 0.65 + 0.35
     });
 
-    if (texture) {
+    // Only apply texture if it's a valid texture object with an image
+    if (texture && texture.image) {
       mat.map = texture;
       mat.color.set("#ffffff");
       mat.needsUpdate = true;
