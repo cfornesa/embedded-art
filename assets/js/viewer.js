@@ -148,27 +148,28 @@ function wrapWithCorsProxy(url) {
   }
 }
 
-async function loadTextureFromUrl(url) {
-  // Wrap with CORS proxy for cross-origin images
-  const proxiedUrl = wrapWithCorsProxy(url);
-  const isProxied = proxiedUrl !== url;
+async function loadTextureFromUrl(url, useProxy = false) {
+  // Determine if we should use proxy
+  const urlToLoad = useProxy ? wrapWithCorsProxy(url) : url;
+  const isProxied = urlToLoad !== url;
 
   if (isProxied) {
     console.log(`Using CORS proxy for: ${url}`);
   }
 
   return new Promise((resolve, reject) => {
-    // Timeout after 15 seconds to prevent hanging (proxy can be slower)
+    // Timeout: 10s for direct load, 15s for proxy (proxy is slower)
+    const timeoutDuration = isProxied ? 15000 : 10000;
     const timeout = setTimeout(() => {
-      reject(new Error(`Texture loading timed out (15s): ${url}`));
-    }, 15000);
+      reject(new Error(`Texture loading timed out (${timeoutDuration/1000}s): ${url}`));
+    }, timeoutDuration);
 
     const loader = new THREE.TextureLoader();
-    // Always enable CORS for proxied URLs
+    // Enable CORS for all cross-origin requests
     loader.crossOrigin = 'anonymous';
 
     loader.load(
-      proxiedUrl,
+      urlToLoad,
       (t) => {
         clearTimeout(timeout);
         // Validate that we got a real texture object
@@ -188,6 +189,37 @@ async function loadTextureFromUrl(url) {
       }
     );
   });
+}
+
+/**
+ * Try loading texture, with automatic proxy fallback on CORS failure.
+ * First attempts direct load (faster for CORS-enabled images),
+ * then retries with CORS proxy if it fails.
+ */
+async function loadTextureWithAutoProxy(url) {
+  try {
+    const imageUrl = new URL(url, window.location.href);
+    const isSameOrigin = imageUrl.origin === window.location.origin;
+
+    // Same-origin images always work without proxy
+    if (isSameOrigin) {
+      console.log(`Loading same-origin image: ${url}`);
+      return await loadTextureFromUrl(url, false);
+    }
+
+    // Try cross-origin image without proxy first (faster if CORS-enabled)
+    console.log(`Trying direct load for: ${url}`);
+    try {
+      return await loadTextureFromUrl(url, false);
+    } catch (directError) {
+      // Direct load failed - likely CORS issue, retry with proxy
+      console.log(`Direct load failed, retrying with CORS proxy: ${url}`);
+      return await loadTextureFromUrl(url, true);
+    }
+  } catch (e) {
+    // URL parsing failed or proxy load failed - give up
+    throw new Error(`Failed to load texture from ${url}: ${e.message}`);
+  }
 }
 
 async function buildFromPiece(piece) {
@@ -214,7 +246,7 @@ async function buildFromPiece(piece) {
   if (config.bgImageUrl) {
     try {
       console.log("Loading background image:", config.bgImageUrl);
-      const bgTexture = await loadTextureFromUrl(config.bgImageUrl);
+      const bgTexture = await loadTextureWithAutoProxy(config.bgImageUrl);
       console.log("Background texture loaded, object:", bgTexture);
       console.log("Texture.image exists?", !!bgTexture?.image);
       console.log("Texture.image value:", bgTexture?.image);
@@ -256,7 +288,7 @@ async function buildFromPiece(piece) {
       if (s.textureUrl) {
         try {
           console.log(`Loading texture for ${type}:`, s.textureUrl);
-          texture = await loadTextureFromUrl(s.textureUrl);
+          texture = await loadTextureWithAutoProxy(s.textureUrl);
           console.log(`Texture object for ${type}:`, texture);
           console.log(`Texture.image exists for ${type}?`, !!texture?.image);
           console.log(`✓ Texture loaded successfully for ${type}`);
@@ -268,7 +300,7 @@ async function buildFromPiece(piece) {
       } else if (s.textureDataUrl) {
         try {
           console.log(`Loading data texture for ${type}`);
-          texture = await loadTextureFromUrl(s.textureDataUrl);
+          texture = await loadTextureWithAutoProxy(s.textureDataUrl);
           console.log(`Data texture object for ${type}:`, texture);
           console.log(`Data texture.image exists for ${type}?`, !!texture?.image);
           console.log(`✓ Data texture loaded successfully for ${type}`);
@@ -320,7 +352,7 @@ async function buildFromPiece(piece) {
   if (config.textureUrl) {
     try {
       console.log("Loading legacy texture:", config.textureUrl);
-      texture = await loadTextureFromUrl(config.textureUrl);
+      texture = await loadTextureWithAutoProxy(config.textureUrl);
       console.log("✓ Legacy texture loaded successfully");
     } catch (err) {
       console.warn("✗ Failed to load legacy texture, falling back to base color:", config.textureUrl, err.message);
@@ -330,7 +362,7 @@ async function buildFromPiece(piece) {
   } else if (config.textureDataUrl) {
     try {
       console.log("Loading legacy data texture");
-      texture = await loadTextureFromUrl(config.textureDataUrl);
+      texture = await loadTextureWithAutoProxy(config.textureDataUrl);
       console.log("✓ Legacy data texture loaded successfully");
     } catch (err) {
       console.warn("✗ Failed to load legacy data texture, falling back to base color:", err.message);
