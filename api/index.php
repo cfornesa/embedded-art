@@ -233,12 +233,15 @@ try {
     // Add caching headers for public pieces
     if ($visibility === "public") {
       $etag = md5($configJson);
-      header("Cache-Control: public, max-age=3600");
+      // Use must-revalidate to allow caching but force check on each request
+      // This lets edits be seen immediately while still benefiting from ETag
+      header("Cache-Control: public, max-age=3600, must-revalidate");
       header("ETag: \"$etag\"");
 
-      // Check if client has cached version
+      // Check if client has cached version with matching ETag
       $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
       if ($clientEtag === "\"$etag\"") {
+        // Content hasn't changed - send 304
         http_response_code(304);
         exit;
       }
