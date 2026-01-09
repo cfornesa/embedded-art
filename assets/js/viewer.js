@@ -191,6 +191,11 @@ async function loadTextureFromUrl(url) {
 }
 
 async function buildFromPiece(piece) {
+  console.log("=== Building piece ===");
+  console.log("Piece ID:", piece.id);
+  console.log("Piece slug:", piece.slug);
+  console.log("Piece data:", piece);
+
   if (piece.visibility === "deleted") {
     showMsg("This piece was deleted.");
     renderer.setClearColor(0x111111, 1);
@@ -199,6 +204,7 @@ async function buildFromPiece(piece) {
   }
 
   const config = piece.config || {};
+  console.log("Config:", config);
   clear();
 
   // Set background color first (fallback if image fails to load)
@@ -209,20 +215,26 @@ async function buildFromPiece(piece) {
     try {
       console.log("Loading background image:", config.bgImageUrl);
       const bgTexture = await loadTextureFromUrl(config.bgImageUrl);
+      console.log("Background texture loaded, object:", bgTexture);
+      console.log("Texture.image exists?", !!bgTexture?.image);
+      console.log("Texture.image value:", bgTexture?.image);
       // Validate texture before applying
       if (bgTexture && bgTexture.image) {
         scene.background = bgTexture;
-        console.log("✓ Background image loaded successfully");
+        console.log("✓ Background image loaded successfully and applied");
       } else {
-        console.warn("✗ Invalid background texture object, using background color");
+        console.warn("✗ Invalid background texture object (no image property), using background color");
+        console.warn("Texture object keys:", bgTexture ? Object.keys(bgTexture) : 'null');
         scene.background = null;
       }
     } catch (err) {
       console.warn("✗ Failed to load background image, using background color:", err.message);
+      console.warn("Error stack:", err.stack);
       // Keep using the background color as fallback
       scene.background = null;
     }
   } else {
+    console.log("No background image URL provided, using solid color");
     // No background image - use solid color
     scene.background = null;
   }
@@ -245,6 +257,8 @@ async function buildFromPiece(piece) {
         try {
           console.log(`Loading texture for ${type}:`, s.textureUrl);
           texture = await loadTextureFromUrl(s.textureUrl);
+          console.log(`Texture object for ${type}:`, texture);
+          console.log(`Texture.image exists for ${type}?`, !!texture?.image);
           console.log(`✓ Texture loaded successfully for ${type}`);
         } catch (err) {
           console.warn(`✗ Failed to load texture for ${type}, falling back to base color:`, s.textureUrl, err.message);
@@ -255,12 +269,16 @@ async function buildFromPiece(piece) {
         try {
           console.log(`Loading data texture for ${type}`);
           texture = await loadTextureFromUrl(s.textureDataUrl);
+          console.log(`Data texture object for ${type}:`, texture);
+          console.log(`Data texture.image exists for ${type}?`, !!texture?.image);
           console.log(`✓ Data texture loaded successfully for ${type}`);
         } catch (err) {
           console.warn(`✗ Failed to load data texture for ${type}, falling back to base color:`, err.message);
           // Continue without texture - will use base color
           texture = null;
         }
+      } else {
+        console.log(`No texture URL for ${type}, using base color`);
       }
 
       for (let i = 0; i < count; i++) {
@@ -274,9 +292,12 @@ async function buildFromPiece(piece) {
 
         // Only apply texture if it's a valid texture object with an image
         if (texture && texture.image) {
+          if (i === 0) console.log(`Applying texture to ${type} material (count: ${count})`);
           mat.map = texture;
           mat.color.set("#ffffff");
           mat.needsUpdate = true;
+        } else {
+          if (i === 0) console.log(`Using base color for ${type} (no valid texture)`);
         }
 
         const mesh = new THREE.Mesh(geom, mat);
