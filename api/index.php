@@ -91,6 +91,49 @@ try {
     respond(200, db_debug_info());
   }
 
+  // GET /api/debug/mysql  (dev-only; shows MySQL configuration)
+  if ($method === "GET" && $resource === "debug" && (($segments[2] ?? "") === "mysql")) {
+    $debugEnabled = (getenv("ENABLE_DEBUG_ENDPOINTS") === "1") || ($apiConfig['ENABLE_DEBUG_ENDPOINTS'] ?? '') === '1';
+    if (!$debugEnabled) respond(404, ["error" => "Not found"]);
+
+    $pdo = pdo_conn();
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    if ($driver !== "mysql") {
+      respond(200, ["error" => "Not using MySQL (driver: {$driver})"]);
+    }
+
+    // Get MySQL configuration variables
+    $vars = [
+      'max_allowed_packet',
+      'wait_timeout',
+      'interactive_timeout',
+      'character_set_server',
+      'collation_server',
+      'innodb_strict_mode',
+      'sql_mode'
+    ];
+
+    $config = [];
+    foreach ($vars as $var) {
+      try {
+        $stmt = $pdo->query("SHOW VARIABLES LIKE '{$var}'");
+        $row = $stmt->fetch();
+        $config[$var] = $row ? $row['Value'] : 'unknown';
+      } catch (Throwable $e) {
+        $config[$var] = 'error: ' . $e->getMessage();
+      }
+    }
+
+    respond(200, [
+      "driver" => $driver,
+      "server_version" => $pdo->getAttribute(PDO::ATTR_SERVER_VERSION),
+      "client_version" => $pdo->getAttribute(PDO::ATTR_CLIENT_VERSION),
+      "connection_status" => $pdo->getAttribute(PDO::ATTR_CONNECTION_STATUS),
+      "variables" => $config
+    ]);
+  }
+
   // Everything below requires a DB connection
   $pdo = pdo_conn();
 
