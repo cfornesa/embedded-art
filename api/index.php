@@ -233,12 +233,15 @@ try {
     // Add caching headers for public pieces
     if ($visibility === "public") {
       $etag = md5($configJson);
-      header("Cache-Control: public, max-age=3600");
+      // Use must-revalidate to allow caching but force check on each request
+      // This lets edits be seen immediately while still benefiting from ETag
+      header("Cache-Control: public, max-age=3600, must-revalidate");
       header("ETag: \"$etag\"");
 
-      // Check if client has cached version
+      // Check if client has cached version with matching ETag
       $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
       if ($clientEtag === "\"$etag\"") {
+        // Content hasn't changed - send 304
         http_response_code(304);
         exit;
       }
@@ -339,6 +342,16 @@ try {
       ? validate_visibility((string)$body["visibility"])
       : (string)$row["visibility"];
 
+    // Log before update for debugging
+    Logger::info('update_attempt', [
+      'ref' => $ref,
+      'is_numeric' => is_numeric_id($ref),
+      'new_config_size' => strlen($configJson),
+      'new_visibility' => $newVisibility,
+      'old_config_size' => strlen((string)$row['config_json']),
+      'old_visibility' => (string)$row['visibility']
+    ]);
+
     // Update the piece
     if (is_numeric_id($ref)) {
       $update = $pdo->prepare("UPDATE pieces SET config_json = :config, visibility = :visibility WHERE id = :id");
@@ -354,6 +367,53 @@ try {
         ":visibility" => $newVisibility,
         ":slug" => $ref
       ]);
+    }
+
+    // Verify the update actually succeeded
+    $rowsAffected = $update->rowCount();
+    if ($rowsAffected === 0) {
+      Logger::error('update_failed_no_rows_affected', [
+        'ref' => $ref,
+        'is_numeric' => is_numeric_id($ref),
+        'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown'
+      ]);
+      respond(500, ["error" => "Update failed: no rows affected"]);
+    }
+
+    // Verify data was actually written to database
+    if (is_numeric_id($ref)) {
+      $verify = $pdo->prepare("SELECT config_json, visibility FROM pieces WHERE id = :id LIMIT 1");
+      $verify->execute([":id" => (int)$ref]);
+    } else {
+      $verify = $pdo->prepare("SELECT config_json, visibility FROM pieces WHERE slug = :slug LIMIT 1");
+      $verify->execute([":slug" => $ref]);
+    }
+
+    $verifyRow = $verify->fetch();
+    $dbConfigMatches = $verifyRow && (string)$verifyRow['config_json'] === $configJson;
+    $dbVisibilityMatches = $verifyRow && (string)$verifyRow['visibility'] === $newVisibility;
+
+    Logger::info('update_successful', [
+      'ref' => $ref,
+      'rows_affected' => $rowsAffected,
+      'config_size' => strlen($configJson),
+      'db_config_matches' => $dbConfigMatches,
+      'db_visibility_matches' => $dbVisibilityMatches,
+      'verification' => $verifyRow ? 'found' : 'not_found'
+    ]);
+
+    // If verification failed, log detailed error
+    if (!$dbConfigMatches || !$dbVisibilityMatches) {
+      Logger::error('update_verification_mismatch', [
+        'ref' => $ref,
+        'config_matches' => $dbConfigMatches,
+        'visibility_matches' => $dbVisibilityMatches,
+        'expected_config_size' => strlen($configJson),
+        'actual_config_size' => $verifyRow ? strlen((string)$verifyRow['config_json']) : 0,
+        'expected_visibility' => $newVisibility,
+        'actual_visibility' => $verifyRow ? (string)$verifyRow['visibility'] : 'null'
+      ]);
+      respond(500, ["error" => "Update verification failed: data mismatch after write"]);
     }
 
     // Send update notification email with new configuration
