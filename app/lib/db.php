@@ -195,6 +195,7 @@ function try_mysql(array $cfg): PDO {
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_TIMEOUT => DB_TIMEOUT_SECONDS, // fast fail -> quick fallback
+        PDO::MYSQL_ATTR_FOUND_ROWS => true, // rowCount() returns matched rows, not changed rows
       ]);
 
       ensure_mysql_schema($pdo);
