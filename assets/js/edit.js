@@ -369,19 +369,11 @@ if (editorForm) {
       }
     };
 
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:371',message:'Save form submit - payload constructed',data:{pieceRef:currentPieceRef,payloadSize:JSON.stringify(payload).length,shapesCount:shapes.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
-    // #endregion
-
     if (saveBtn) saveBtn.disabled = true;
     setEditorMsg("Saving changes...", "info");
 
     try {
-      const url = `${API_ENDPOINTS.PIECES}/${encodeURIComponent(currentPieceRef)}`;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:378',message:'Before fetch request',data:{url,method:'PUT',adminKeyPresent:!!currentAdminKey,adminKeyLength:currentAdminKey.length,payloadSize:JSON.stringify(payload).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
-      // #endregion
-      const res = await fetch(url, {
+      const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(currentPieceRef)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -390,20 +382,9 @@ if (editorForm) {
         body: JSON.stringify(payload)
       });
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:390',message:'Fetch response received',data:{status:res.status,statusText:res.statusText,ok:res.ok,contentType:res.headers.get('content-type')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H3'})}).catch(()=>{});
-      // #endregion
-
       const data = await res.json();
 
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:395',message:'Response parsed',data:{status:res.status,ok:res.ok,hasData:!!data,hasConfig:!!(data&&data.config),error:data.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
-      // #endregion
-
       if (!res.ok) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:397',message:'Request failed',data:{status:res.status,error:data.error},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
-        // #endregion
         if (res.status === 403) {
           setEditorMsg("Invalid admin key. Changes not saved.", "danger");
         } else {
@@ -413,9 +394,6 @@ if (editorForm) {
       }
 
       // Success - update original data with new data
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:408',message:'Save successful - updating originalData',data:{pieceId:data.id,hasConfig:!!data.config,configVersion:data.config?.version},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H6'})}).catch(()=>{});
-      // #endregion
       originalData = data;
 
       // Build configuration summary for backup
