@@ -345,6 +345,9 @@ try {
   if ($method === "PUT" && count($segments) === 3) {
     $ref = (string)$segments[2];
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:346", "message" => "PUT endpoint entry", "data" => ["ref" => $ref, "hasAdminKey" => $adminKey !== "", "method" => $method], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H2"]) . "\n", FILE_APPEND);
+    // #endregion
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
     // Fetch existing piece to verify ownership and get current data (including email for notification)
@@ -364,7 +367,11 @@ try {
     }
 
     // Parse request body
-    $body = json_decode(file_get_contents("php://input"), true);
+    $rawBody = file_get_contents("php://input");
+    $body = json_decode($rawBody, true);
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:368", "message" => "Request body parsed", "data" => ["hasBody" => is_array($body), "hasConfig" => isset($body["config"]), "bodySize" => strlen($rawBody)], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H1"]) . "\n", FILE_APPEND);
+    // #endregion
     if (!is_array($body)) respond(400, ["error" => "Invalid JSON body"]);
 
     // Validate and update config (required)
@@ -376,7 +383,13 @@ try {
       validate_config($body["config"]); // Validates and throws on error
       $newConfig = $body["config"]; // Use validated config
       $configJson = json_encode($newConfig, JSON_THROW_ON_ERROR);
+      // #region agent log
+      file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:378", "message" => "Config validated successfully", "data" => ["configSize" => strlen($configJson), "hasShapes" => isset($newConfig["shapes"]), "shapesCount" => isset($newConfig["shapes"]) ? count($newConfig["shapes"]) : 0], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+      // #endregion
     } catch (Exception $e) {
+      // #region agent log
+      file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:380", "message" => "Config validation failed", "data" => ["error" => $e->getMessage()], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+      // #endregion
       respond(400, ["error" => "Invalid config: " . $e->getMessage()]);
     }
 
@@ -414,6 +427,9 @@ try {
 
     // Verify the update actually succeeded
     $rowsAffected = $update->rowCount();
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:416", "message" => "UPDATE query executed", "data" => ["rowsAffected" => $rowsAffected, "ref" => $ref, "isNumeric" => is_numeric_id($ref)], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H5"]) . "\n", FILE_APPEND);
+    // #endregion
     if ($rowsAffected === 0) {
       Logger::error('update_failed_no_rows_affected', [
         'ref' => $ref,
@@ -435,6 +451,9 @@ try {
     $verifyRow = $verify->fetch();
     $dbConfigMatches = $verifyRow && (string)$verifyRow['config_json'] === $configJson;
     $dbVisibilityMatches = $verifyRow && (string)$verifyRow['visibility'] === $newVisibility;
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:437", "message" => "Database verification", "data" => ["configMatches" => $dbConfigMatches, "visibilityMatches" => $dbVisibilityMatches, "expectedConfigSize" => strlen($configJson), "actualConfigSize" => $verifyRow ? strlen((string)$verifyRow['config_json']) : 0], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H5"]) . "\n", FILE_APPEND);
+    // #endregion
 
     Logger::info('update_successful', [
       'ref' => $ref,
@@ -482,6 +501,9 @@ try {
     ]);
 
     // Return updated piece data (without admin_key for security)
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:485", "message" => "Sending success response", "data" => ["pieceId" => (int)$row["id"], "hasConfig" => isset($newConfig), "configVersion" => $newConfig["version"] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H6"]) . "\n", FILE_APPEND);
+    // #endregion
     respond(200, [
       "ok" => true,
       "id" => (int)$row["id"],
