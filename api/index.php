@@ -258,6 +258,9 @@ try {
   // GET /api/pieces/{ref}
   if ($method === "GET" && count($segments) === 3) {
     $ref = (string)$segments[2];
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:259", "message" => "GET endpoint entry", "data" => ["ref" => $ref, "hasAdminKey" => isset($_SERVER["HTTP_X_ADMIN_KEY"]), "ifNoneMatch" => $_SERVER['HTTP_IF_NONE_MATCH'] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H2"]) . "\n", FILE_APPEND);
+    // #endregion
 
     if (is_numeric_id($ref)) {
       $stmt = $pdo->prepare("SELECT id, slug, visibility, config_json FROM pieces WHERE id = :id LIMIT 1");
@@ -272,6 +275,10 @@ try {
 
     $visibility = (string)$row["visibility"];
     $configJson = (string)$row["config_json"];
+    $config = json_decode($configJson, true);
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:274", "message" => "Piece data loaded from DB", "data" => ["pieceId" => (int)$row["id"], "visibility" => $visibility, "configSize" => strlen($configJson), "configBg" => $config["bg"] ?? null, "configVersion" => $config["version"] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H5"]) . "\n", FILE_APPEND);
+    // #endregion
 
     // Add caching headers for public pieces
     if ($visibility === "public") {
@@ -284,6 +291,9 @@ try {
       // Check if client has cached version with matching ETag
       $clientEtag = $_SERVER['HTTP_IF_NONE_MATCH'] ?? '';
       if ($clientEtag === "\"$etag\"") {
+        // #region agent log
+        file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:286", "message" => "ETag match - sending 304", "data" => ["etag" => $etag, "clientEtag" => $clientEtag], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H2"]) . "\n", FILE_APPEND);
+        // #endregion
         // Content hasn't changed - send 304
         http_response_code(304);
         exit;
@@ -292,11 +302,14 @@ try {
       header("Cache-Control: private, no-cache");
     }
 
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:293", "message" => "Sending piece data response", "data" => ["pieceId" => (int)$row["id"], "visibility" => $visibility, "etag" => isset($etag) ? $etag : null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H2"]) . "\n", FILE_APPEND);
+    // #endregion
     respond(200, [
       "id" => (int)$row["id"],
       "slug" => (string)$row["slug"],
       "visibility" => $visibility,
-      "config" => json_decode($configJson, true)
+      "config" => $config
     ]);
   }
 
@@ -345,6 +358,10 @@ try {
   if ($method === "PUT" && count($segments) === 3) {
     $ref = (string)$segments[2];
     $adminKey = (string)($_SERVER["HTTP_X_ADMIN_KEY"] ?? "");
+    // #region agent log
+    $requestId = uniqid('put-', true);
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:358", "message" => "PUT endpoint entry", "data" => ["requestId" => $requestId, "ref" => $ref, "hasAdminKey" => $adminKey !== ""], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+    // #endregion
     if ($adminKey === "") respond(401, ["error" => "Missing admin key"]);
 
     // Fetch existing piece to verify ownership and get current data (including email for notification)
@@ -358,6 +375,10 @@ try {
 
     $row = $stmt->fetch();
     if (!$row) respond(404, ["error" => "Not found"]);
+    $oldConfig = json_decode((string)$row["config_json"], true);
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:373", "message" => "PUT - loaded existing piece", "data" => ["requestId" => $requestId, "pieceId" => (int)$row["id"], "oldConfigBg" => $oldConfig["bg"] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+    // #endregion
     if ((string)$row["admin_key"] !== $adminKey) {
       Logger::warning('invalid_admin_key_update', ['ref' => $ref, 'ip' => $_SERVER['REMOTE_ADDR'] ?? 'unknown']);
       respond(403, ["error" => "Invalid admin key"]);
@@ -376,6 +397,9 @@ try {
       validate_config($body["config"]); // Validates and throws on error
       $newConfig = $body["config"]; // Use validated config
       $configJson = json_encode($newConfig, JSON_THROW_ON_ERROR);
+      // #region agent log
+      file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:391", "message" => "PUT - config validated", "data" => ["requestId" => $requestId, "newConfigBg" => $newConfig["bg"] ?? null, "oldConfigBg" => $oldConfig["bg"] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+      // #endregion
     } catch (Exception $e) {
       respond(400, ["error" => "Invalid config: " . $e->getMessage()]);
     }
@@ -435,6 +459,10 @@ try {
     $verifyRow = $verify->fetch();
     $dbConfigMatches = $verifyRow && (string)$verifyRow['config_json'] === $configJson;
     $dbVisibilityMatches = $verifyRow && (string)$verifyRow['visibility'] === $newVisibility;
+    $verifiedConfig = $verifyRow ? json_decode((string)$verifyRow['config_json'], true) : null;
+    // #region agent log
+    file_put_contents(__DIR__ . "/../.cursor/debug.log", json_encode(["location" => "api/index.php:449", "message" => "PUT - database verification", "data" => ["requestId" => $requestId, "rowsAffected" => $rowsAffected, "dbConfigMatches" => $dbConfigMatches, "verifiedConfigBg" => $verifiedConfig["bg"] ?? null, "expectedConfigBg" => $newConfig["bg"] ?? null], "timestamp" => (int)(microtime(true) * 1000), "sessionId" => "debug-session", "runId" => "run1", "hypothesisId" => "H4"]) . "\n", FILE_APPEND);
+    // #endregion
 
     Logger::info('update_successful', [
       'ref' => $ref,
