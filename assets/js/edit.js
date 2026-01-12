@@ -35,6 +35,7 @@ const totalBadge = $("#totalBadge");
 let currentPieceRef = "";
 let currentAdminKey = "";
 let originalData = null; // Store original piece data for reset
+let saveInProgress = false; // Track if a save is currently in progress
 
 // -------------------------
 // Messaging
@@ -210,13 +211,24 @@ if (authForm) {
     setAuthMsg("Loading piece...", "info");
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:213',message:'Loading piece for edit',data:{ref,hasCacheHeader:false},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
       const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, {
+        cache: "no-store",
         headers: {
           "X-Admin-Key": key
         }
       });
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:220',message:'Piece loaded response',data:{status:res.status,statusText:res.statusText,etag:res.headers.get('etag'),cacheControl:res.headers.get('cache-control')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H2'})}).catch(()=>{});
+      // #endregion
       const data = await res.json();
+
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:223',message:'Piece data parsed',data:{pieceId:data.id,hasConfig:!!data.config,configVersion:data.config?.version,bg:data.config?.bg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H1'})}).catch(()=>{});
+      // #endregion
 
       if (!res.ok) {
         if (res.status === 403) {
@@ -369,10 +381,24 @@ if (editorForm) {
       }
     };
 
+    // #region agent log
+    const saveId = Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:372',message:'Save initiated',data:{saveId,saveInProgress,payloadBg:payload.config.bg,originalDataBg:originalData?.config?.bg,formBg:bg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+    // #endregion
+
+    if (saveInProgress) {
+      setEditorMsg("Another save is already in progress. Please wait.", "warning");
+      return;
+    }
+
+    saveInProgress = true;
     if (saveBtn) saveBtn.disabled = true;
     setEditorMsg("Saving changes...", "info");
 
     try {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:390',message:'Starting PUT request',data:{saveId,payloadBg:payload.config.bg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(currentPieceRef)}`, {
         method: "PUT",
         headers: {
@@ -384,17 +410,27 @@ if (editorForm) {
 
       const data = await res.json();
 
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:396',message:'PUT response received',data:{saveId,status:res.status,ok:res.ok,responseBg:data.config?.bg,payloadBg:payload.config.bg},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
+
       if (!res.ok) {
         if (res.status === 403) {
           setEditorMsg("Invalid admin key. Changes not saved.", "danger");
         } else {
           setEditorMsg(data.error || `Save failed (${res.status})`, "danger");
         }
+        saveInProgress = false;
+        if (saveBtn) saveBtn.disabled = false;
         return;
       }
 
       // Success - update original data with new data
+      const oldOriginalDataBg = originalData?.config?.bg;
       originalData = data;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:410',message:'Save successful - originalData updated',data:{saveId,oldOriginalDataBg,newOriginalDataBg:data.config?.bg,payloadBg:payload.config.bg,formBg:getVal('bgColor')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
 
       // Build configuration summary for backup
       let configSummary = "📋 CONFIGURATION BACKUP (copy for your records):\n\n";
@@ -416,8 +452,12 @@ if (editorForm) {
       setTimeout(() => clearEditorMsg(), 15000);
 
     } catch (err) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c68c1cbf-5fbf-4d7b-bd8e-397644475de7',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'edit.js:428',message:'Save error',data:{saveId,error:err.message},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'H4'})}).catch(()=>{});
+      // #endregion
       setEditorMsg(err?.message || "Save failed", "danger");
     } finally {
+      saveInProgress = false;
       if (saveBtn) saveBtn.disabled = false;
     }
   });
