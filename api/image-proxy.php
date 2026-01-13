@@ -78,6 +78,28 @@ if (!in_array($extension, ALLOWED_EXTENSIONS, true)) {
 }
 
 /**
+ * Validate that an IP address is not private/internal (SSRF protection)
+ * 
+ * @param string $ip The IP address to validate
+ * @return array ['valid' => bool, 'error' => string|null]
+ */
+function validateIpAddress(string $ip): array {
+    // Block private and reserved IP ranges using PHP's built-in filter
+    // This covers: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 0.0.0.0/8, etc.
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
+    }
+    
+    // Also block link-local addresses explicitly (169.254.x.x for IPv4, fe80:: for IPv6)
+    // These are used by cloud metadata services (AWS, GCP, Azure, etc.)
+    if (preg_match('/^169\.254\./', $ip) || stripos($ip, 'fe80:') === 0) {
+        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
+    }
+    
+    return ['valid' => true, 'error' => null];
+}
+
+/**
  * Validate that a URL's resolved IP is not private/internal (SSRF protection)
  * 
  * @param string $url The URL to validate
@@ -89,29 +111,46 @@ function validateUrlIpAddress(string $url): array {
         return ['valid' => false, 'error' => 'Invalid URL - no host'];
     }
     
+    // SECURITY: First check if the host is already a direct IP address
+    // This prevents bypass via direct IP URLs like http://192.168.1.1/image.jpg
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        // Host is a direct IPv4 address - validate it directly
+        return validateIpAddress($host);
+    }
+    
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        // Host is a direct IPv6 address - validate it directly
+        return validateIpAddress($host);
+    }
+    
+    // Host is a hostname - resolve it to IP address(es)
     $ip = gethostbyname($host);
-    if ($ip === $host) {
-        // Failed to resolve - could be IPv6 or invalid hostname
-        // Try getaddrinfo for IPv6 support
-        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
-        if (empty($records)) {
-            return ['valid' => false, 'error' => 'Could not resolve hostname'];
-        }
-        $ip = $records[0]['ip'] ?? $records[0]['ipv6'] ?? null;
-        if (!$ip) {
-            return ['valid' => false, 'error' => 'Could not resolve hostname'];
+    if ($ip !== $host) {
+        // Successfully resolved to IPv4
+        return validateIpAddress($ip);
+    }
+    
+    // gethostbyname failed - try dns_get_record for IPv6 support
+    $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+    if (empty($records)) {
+        return ['valid' => false, 'error' => 'Could not resolve hostname'];
+    }
+    
+    // Validate ALL resolved IP addresses (prevent DNS rebinding with multiple A records)
+    foreach ($records as $record) {
+        $resolvedIp = $record['ip'] ?? $record['ipv6'] ?? null;
+        if ($resolvedIp) {
+            $validation = validateIpAddress($resolvedIp);
+            if (!$validation['valid']) {
+                return $validation;
+            }
         }
     }
     
-    // Block private and reserved IP ranges
-    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
-    }
-    
-    // Also block link-local addresses explicitly (169.254.x.x for IPv4, fe80:: for IPv6)
-    // These are used by cloud metadata services
-    if (preg_match('/^169\.254\./', $ip) || stripos($ip, 'fe80:') === 0) {
-        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
+    // If we got here but found no IPs, that's an error
+    $firstIp = $records[0]['ip'] ?? $records[0]['ipv6'] ?? null;
+    if (!$firstIp) {
+        return ['valid' => false, 'error' => 'Could not resolve hostname'];
     }
     
     return ['valid' => true, 'error' => null];
