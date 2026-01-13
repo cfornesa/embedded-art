@@ -35,6 +35,7 @@ const totalBadge = $("#totalBadge");
 let currentPieceRef = "";
 let currentAdminKey = "";
 let originalData = null; // Store original piece data for reset
+let saveInProgress = false; // Track if a save is currently in progress
 
 // -------------------------
 // Messaging
@@ -211,6 +212,7 @@ if (authForm) {
 
     try {
       const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, {
+        cache: "no-store",
         headers: {
           "X-Admin-Key": key
         }
@@ -369,6 +371,12 @@ if (editorForm) {
       }
     };
 
+    if (saveInProgress) {
+      setEditorMsg("Another save is already in progress. Please wait.", "warning");
+      return;
+    }
+
+    saveInProgress = true;
     if (saveBtn) saveBtn.disabled = true;
     setEditorMsg("Saving changes...", "info");
 
@@ -390,6 +398,8 @@ if (editorForm) {
         } else {
           setEditorMsg(data.error || `Save failed (${res.status})`, "danger");
         }
+        saveInProgress = false;
+        if (saveBtn) saveBtn.disabled = false;
         return;
       }
 
@@ -418,6 +428,7 @@ if (editorForm) {
     } catch (err) {
       setEditorMsg(err?.message || "Save failed", "danger");
     } finally {
+      saveInProgress = false;
       if (saveBtn) saveBtn.disabled = false;
     }
   });

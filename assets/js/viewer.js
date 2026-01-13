@@ -124,8 +124,10 @@ function clear() {
 }
 
 /**
- * Wrap cross-origin image URLs with CORS proxy to enable texture loading.
+ * Wrap cross-origin image URLs with self-hosted CORS proxy to enable texture loading.
  * Same-origin images are returned as-is (no proxy needed).
+ * 
+ * Uses /api/image-proxy.php instead of third-party services for privacy.
  */
 function wrapWithCorsProxy(url) {
   if (!url || typeof url !== 'string') return url;
@@ -139,12 +141,12 @@ function wrapWithCorsProxy(url) {
       return url;
     }
 
-    // Wrap cross-origin images with CORS proxy
-    // This allows loading images from any source without CORS restrictions
-    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    // Wrap cross-origin images with self-hosted CORS proxy
+    // This keeps user URLs private (not sent to third-party services)
+    return `/api/image-proxy.php?url=${encodeURIComponent(url)}`;
   } catch (e) {
-    // If URL parsing fails, wrap it anyway to be safe
-    return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    // If URL parsing fails, try proxy anyway
+    return `/api/image-proxy.php?url=${encodeURIComponent(url)}`;
   }
 }
 
