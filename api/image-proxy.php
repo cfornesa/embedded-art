@@ -45,8 +45,9 @@ if (empty($url)) {
     exit;
 }
 
-// Decode URL if it was encoded
-$url = urldecode($url);
+// Note: $_GET already URL-decodes the parameter automatically.
+// Do NOT call urldecode() here as it would cause double-decoding,
+// corrupting URLs with intentionally percent-encoded characters.
 
 // Validate URL format
 if (!filter_var($url, FILTER_VALIDATE_URL)) {
