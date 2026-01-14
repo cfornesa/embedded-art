@@ -1,6 +1,6 @@
 run = "php -S 0.0.0.0:8000 -t ."
 
-entrypoint = "index.php"
+entrypoint = "threejs/index.php"
 
 [nix]
 channel = "stable-22_11"
