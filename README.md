@@ -2,6 +2,25 @@
 
 A 3D art piece creation and embedding platform built with PHP backend and Three.js frontend. Users can create customizable 3D scenes with multiple geometric shapes, textures, and colors, then embed them anywhere via iframe.
 
+## Repository Structure
+
+This repository supports multiple subprojects. The 3D art application is located in the `/threejs/` folder:
+
+```
+/
+├── threejs/              # 3D Art Application (main project)
+│   ├── api/              # PHP API endpoints
+│   ├── app/              # Backend libraries
+│   ├── assets/           # Frontend JavaScript
+│   ├── builder.html      # Main builder UI
+│   └── ...
+├── other-project/        # (future subprojects can go here)
+├── README.md             # This file
+└── HOSTINGER_DEPLOYMENT.md
+```
+
+**Access the app at:** `https://yourdomain.com/threejs/builder.html`
+
 ## Table of Contents
 
 - [Architecture Overview](#architecture-overview)
@@ -106,8 +125,8 @@ A 3D art piece creation and embedding platform built with PHP backend and Three.
 
 3. **Create data directory:**
    ```bash
-   mkdir -p app/data
-   chmod 775 app/data
+   mkdir -p threejs/app/data
+   chmod 775 threejs/app/data
    ```
 
 4. **Start development server:**
@@ -116,7 +135,7 @@ A 3D art piece creation and embedding platform built with PHP backend and Three.
    ```
 
 5. **Access the builder:**
-   Navigate to `http://localhost:8000/builder.html`
+   Navigate to `http://localhost:8000/threejs/builder.html`
 
 ### Production Setup (Hostinger / cPanel)
 
@@ -128,7 +147,7 @@ A 3D art piece creation and embedding platform built with PHP backend and Three.
 
 3. **Configure database credentials:**
 
-   Create `app/lib/config.php` (never commit this file):
+   Create `threejs/app/lib/config.php` (never commit this file):
    ```php
    <?php
    return [
@@ -142,18 +161,18 @@ A 3D art piece creation and embedding platform built with PHP backend and Three.
 
 4. **Set directory permissions:**
    ```bash
-   chmod 755 app/lib
-   chmod 600 app/lib/config.php  # Protect credentials
-   chmod 775 app/data            # For SQLite fallback
+   chmod 755 threejs/app/lib
+   chmod 600 threejs/app/lib/config.php  # Protect credentials
+   chmod 775 threejs/app/data            # For SQLite fallback
    ```
 
 5. **Verify `.htaccess` is active:**
    - Ensure mod_rewrite is enabled
-   - Test: `https://your-domain.com/api/health`
+   - Test: `https://your-domain.com/threejs/api/health`
 
 6. **Test database connection:**
    ```bash
-   curl https://your-domain.com/api/health
+   curl https://your-domain.com/threejs/api/health
    # Should return: {"ok":true,"driver":"mysql"}
    ```
 
@@ -163,28 +182,36 @@ A 3D art piece creation and embedding platform built with PHP backend and Three.
 
 ```
 embedded-art/
-├── api/
-│   └── index.php              # API router & endpoint handlers
-├── app/
-│   ├── lib/
-│   │   ├── db.php            # Database abstraction layer
-│   │   ├── piece.php         # Validation & business logic
-│   │   └── config.php        # [GITIGNORED] Production DB credentials
-│   ├── data/                  # [GITIGNORED] SQLite database storage
-│   └── index.php             # Placeholder (redirects)
-├── assets/
-│   └── js/
-│       ├── builder.js        # Piece creation UI logic
-│       ├── viewer.js         # Three.js 3D rendering engine
-│       └── delete.js         # Piece deletion UI logic
-├── builder.html              # Main builder interface
-├── embed.html                # Embeddable viewer (iframe target)
-├── delete.html               # Admin deletion interface
-├── view.html                 # Standalone viewer (debug)
-├── index.php                 # Root redirect to builder
-├── .htaccess                 # Apache rewrite rules & security
-├── .gitignore                # Exclude secrets & runtime files
-└── README.md                 # This file
+├── threejs/                   # Main 3D Art Application
+│   ├── api/
+│   │   ├── index.php         # API router & endpoint handlers
+│   │   └── image-proxy.php   # Self-hosted CORS proxy for textures
+│   ├── app/
+│   │   ├── lib/
+│   │   │   ├── base_path.php # Subdirectory path configuration
+│   │   │   ├── db.php        # Database abstraction layer
+│   │   │   ├── piece.php     # Validation & business logic
+│   │   │   └── config.php    # [GITIGNORED] Production DB credentials
+│   │   ├── data/             # [GITIGNORED] SQLite database storage
+│   │   └── index.php         # Placeholder (redirects)
+│   ├── assets/
+│   │   └── js/
+│   │       ├── constants.js  # Shared config (BASE_PATH, limits)
+│   │       ├── builder.js    # Piece creation UI logic
+│   │       ├── viewer.js     # Three.js 3D rendering engine
+│   │       ├── edit.js       # Piece editing UI logic
+│   │       └── delete.js     # Piece deletion UI logic
+│   ├── builder.html          # Main builder interface
+│   ├── edit.html             # Edit existing piece
+│   ├── embed.html            # Embeddable viewer (iframe target)
+│   ├── delete.html           # Admin deletion interface
+│   ├── view.html             # Standalone viewer (debug)
+│   ├── index.php             # Root redirect to builder
+│   └── .htaccess             # Apache rewrite rules & security
+├── .gitignore                 # Exclude secrets & runtime files
+├── .replit                    # Replit configuration
+├── README.md                  # This file
+└── HOSTINGER_DEPLOYMENT.md    # Deployment guide
 ```
 
 ### File Responsibilities
@@ -259,8 +286,8 @@ PDO::ATTR_TIMEOUT => 2  // Fast MySQL failure → quick SQLite fallback
 ## API Documentation
 
 ### Base URL
-- Development: `http://localhost:8000/api`
-- Production: `https://your-domain.com/api`
+- Development: `http://localhost:8000/threejs/api`
+- Production: `https://your-domain.com/threejs/api`
 
 ### Authentication
 Admin operations require the `X-Admin-Key` header:
