@@ -1,5 +1,6 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { basePath } from './constants.js';
 
 const wrap = document.querySelector("#wrap");
 const msg = document.querySelector("#msg");
@@ -25,8 +26,8 @@ if (!ref) {
  */
 async function fetchPiece(ref) {
   const candidates = [
-    `/api/pieces/${encodeURIComponent(ref)}`,
-    `/api/index.php/pieces/${encodeURIComponent(ref)}`
+    `${basePath('/api/pieces')}/${encodeURIComponent(ref)}`,
+    `${basePath('/api/index.php/pieces')}/${encodeURIComponent(ref)}`
   ];
 
   let lastErr = null;
@@ -143,10 +144,10 @@ function wrapWithCorsProxy(url) {
 
     // Wrap cross-origin images with self-hosted CORS proxy
     // This keeps user URLs private (not sent to third-party services)
-    return `/api/image-proxy.php?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
   } catch (e) {
     // If URL parsing fails, try proxy anyway
-    return `/api/image-proxy.php?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
   }
 }
 

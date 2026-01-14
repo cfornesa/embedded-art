@@ -45,8 +45,9 @@ if (empty($url)) {
     exit;
 }
 
-// Decode URL if it was encoded
-$url = urldecode($url);
+// Note: $_GET already URL-decodes the parameter automatically.
+// Do NOT call urldecode() here as it would cause double-decoding,
+// corrupting URLs with intentionally percent-encoded characters.
 
 // Validate URL format
 if (!filter_var($url, FILTER_VALIDATE_URL)) {
@@ -77,52 +78,207 @@ if (!in_array($extension, ALLOWED_EXTENSIONS, true)) {
     exit;
 }
 
-// Security: Block private/internal IPs to prevent SSRF
-$host = parse_url($url, PHP_URL_HOST);
-if ($host) {
-    $ip = gethostbyname($host);
-    if ($ip !== $host) { // Successfully resolved
-        // Block private and reserved IP ranges
-        if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
-            http_response_code(403);
-            header("Content-Type: application/json");
-            echo json_encode(["error" => "Access to internal resources not allowed"]);
-            exit;
-        }
+/**
+ * Validate that an IP address is not private/internal (SSRF protection)
+ * 
+ * @param string $ip The IP address to validate
+ * @return array ['valid' => bool, 'error' => string|null]
+ */
+function validateIpAddress(string $ip): array {
+    // Block private and reserved IP ranges using PHP's built-in filter
+    // This covers: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 0.0.0.0/8, etc.
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
     }
+    
+    // Also block link-local addresses explicitly (169.254.x.x for IPv4, fe80:: for IPv6)
+    // These are used by cloud metadata services (AWS, GCP, Azure, etc.)
+    if (preg_match('/^169\.254\./', $ip) || stripos($ip, 'fe80:') === 0) {
+        return ['valid' => false, 'error' => 'Access to internal resources not allowed'];
+    }
+    
+    return ['valid' => true, 'error' => null];
 }
 
-// Fetch the image using cURL
-$ch = curl_init();
-curl_setopt_array($ch, [
-    CURLOPT_URL => $url,
-    CURLOPT_RETURNTRANSFER => true,
-    CURLOPT_FOLLOWLOCATION => true,
-    CURLOPT_MAXREDIRS => 3,
-    CURLOPT_TIMEOUT => FETCH_TIMEOUT,
-    CURLOPT_CONNECTTIMEOUT => 5,
-    CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; ImageProxy/1.0)',
-    CURLOPT_HTTPHEADER => [
-        'Accept: image/*',
-    ],
-    // Security: Don't expose internal errors
-    CURLOPT_FAILONERROR => true,
-    // Size limit (approximate, checked properly after fetch)
-    CURLOPT_MAXFILESIZE => MAX_IMAGE_SIZE,
-]);
+/**
+ * Validate that a URL's resolved IP is not private/internal (SSRF protection)
+ * 
+ * @param string $url The URL to validate
+ * @return array ['valid' => bool, 'error' => string|null]
+ */
+function validateUrlIpAddress(string $url): array {
+    $host = parse_url($url, PHP_URL_HOST);
+    if (!$host) {
+        return ['valid' => false, 'error' => 'Invalid URL - no host'];
+    }
+    
+    // SECURITY: First check if the host is already a direct IP address
+    // This prevents bypass via direct IP URLs like http://192.168.1.1/image.jpg
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        // Host is a direct IPv4 address - validate it directly
+        return validateIpAddress($host);
+    }
+    
+    if (filter_var($host, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
+        // Host is a direct IPv6 address - validate it directly
+        return validateIpAddress($host);
+    }
+    
+    // Host is a hostname - resolve it to IP address(es)
+    $ip = gethostbyname($host);
+    if ($ip !== $host) {
+        // Successfully resolved to IPv4
+        return validateIpAddress($ip);
+    }
+    
+    // gethostbyname failed - try dns_get_record for IPv6 support
+    $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+    if (empty($records)) {
+        return ['valid' => false, 'error' => 'Could not resolve hostname'];
+    }
+    
+    // Validate ALL resolved IP addresses (prevent DNS rebinding with multiple A records)
+    foreach ($records as $record) {
+        $resolvedIp = $record['ip'] ?? $record['ipv6'] ?? null;
+        if ($resolvedIp) {
+            $validation = validateIpAddress($resolvedIp);
+            if (!$validation['valid']) {
+                return $validation;
+            }
+        }
+    }
+    
+    // If we got here but found no IPs, that's an error
+    $firstIp = $records[0]['ip'] ?? $records[0]['ipv6'] ?? null;
+    if (!$firstIp) {
+        return ['valid' => false, 'error' => 'Could not resolve hostname'];
+    }
+    
+    return ['valid' => true, 'error' => null];
+}
 
-$imageData = curl_exec($ch);
-$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-$contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
-$error = curl_error($ch);
-curl_close($ch);
+// Validate initial URL's IP address
+$validation = validateUrlIpAddress($url);
+if (!$validation['valid']) {
+    http_response_code(403);
+    header("Content-Type: application/json");
+    echo json_encode(["error" => $validation['error']]);
+    exit;
+}
+
+/**
+ * Fetch image with SSRF-safe redirect handling
+ * Validates each redirect destination before following it
+ * 
+ * @param string $url Initial URL to fetch
+ * @param int $maxRedirects Maximum number of redirects to follow
+ * @return array ['success' => bool, 'data' => string|null, 'contentType' => string|null, 'error' => string|null, 'httpCode' => int]
+ */
+function fetchImageWithSafeRedirects(string $url, int $maxRedirects = 3): array {
+    $currentUrl = $url;
+    $redirectCount = 0;
+    
+    while ($redirectCount <= $maxRedirects) {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $currentUrl,
+            CURLOPT_RETURNTRANSFER => true,
+            // SECURITY: Disable automatic redirect following to validate each redirect
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_TIMEOUT => FETCH_TIMEOUT,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_USERAGENT => 'Mozilla/5.0 (compatible; ImageProxy/1.0)',
+            CURLOPT_HTTPHEADER => [
+                'Accept: image/*',
+            ],
+            // Return headers to extract Location for redirects
+            CURLOPT_HEADER => true,
+            // Size limit (approximate, checked properly after fetch)
+            CURLOPT_MAXFILESIZE => MAX_IMAGE_SIZE,
+        ]);
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $headerSize = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+        $contentType = curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
+        $error = curl_error($ch);
+        curl_close($ch);
+        
+        if ($response === false) {
+            return ['success' => false, 'data' => null, 'contentType' => null, 'error' => $error ?: 'Failed to fetch URL', 'httpCode' => $httpCode];
+        }
+        
+        // Check for redirect status codes
+        if (in_array($httpCode, [301, 302, 303, 307, 308], true)) {
+            $redirectCount++;
+            
+            if ($redirectCount > $maxRedirects) {
+                return ['success' => false, 'data' => null, 'contentType' => null, 'error' => 'Too many redirects', 'httpCode' => $httpCode];
+            }
+            
+            // Extract Location header
+            $headers = substr($response, 0, $headerSize);
+            if (preg_match('/^Location:\s*(.+)$/mi', $headers, $matches)) {
+                $newUrl = trim($matches[1]);
+                
+                // Handle relative URLs
+                if (!parse_url($newUrl, PHP_URL_HOST)) {
+                    $parsedCurrent = parse_url($currentUrl);
+                    $baseUrl = $parsedCurrent['scheme'] . '://' . $parsedCurrent['host'];
+                    if (isset($parsedCurrent['port'])) {
+                        $baseUrl .= ':' . $parsedCurrent['port'];
+                    }
+                    if (strpos($newUrl, '/') === 0) {
+                        $newUrl = $baseUrl . $newUrl;
+                    } else {
+                        $newUrl = $baseUrl . '/' . $newUrl;
+                    }
+                }
+                
+                // SECURITY: Validate redirect URL scheme
+                $newScheme = parse_url($newUrl, PHP_URL_SCHEME);
+                if (!in_array(strtolower($newScheme ?? ''), ['http', 'https'], true)) {
+                    return ['success' => false, 'data' => null, 'contentType' => null, 'error' => 'Invalid redirect protocol', 'httpCode' => $httpCode];
+                }
+                
+                // SECURITY: Validate redirect destination IP address (prevents SSRF via redirect)
+                $validation = validateUrlIpAddress($newUrl);
+                if (!$validation['valid']) {
+                    return ['success' => false, 'data' => null, 'contentType' => null, 'error' => 'Redirect blocked: ' . $validation['error'], 'httpCode' => $httpCode];
+                }
+                
+                $currentUrl = $newUrl;
+                continue;
+            } else {
+                return ['success' => false, 'data' => null, 'contentType' => null, 'error' => 'Redirect without Location header', 'httpCode' => $httpCode];
+            }
+        }
+        
+        // Not a redirect - extract body and return
+        $body = substr($response, $headerSize);
+        
+        if ($httpCode !== 200) {
+            return ['success' => false, 'data' => null, 'contentType' => null, 'error' => "Failed to fetch image (HTTP {$httpCode})", 'httpCode' => $httpCode];
+        }
+        
+        return ['success' => true, 'data' => $body, 'contentType' => $contentType, 'error' => null, 'httpCode' => $httpCode];
+    }
+    
+    return ['success' => false, 'data' => null, 'contentType' => null, 'error' => 'Too many redirects', 'httpCode' => 0];
+}
+
+// Fetch the image with SSRF-safe redirect handling
+$result = fetchImageWithSafeRedirects($url, 3);
+$imageData = $result['data'];
+$httpCode = $result['httpCode'];
+$contentType = $result['contentType'];
+$error = $result['error'];
 
 // Handle fetch errors
-if ($imageData === false || $httpCode !== 200) {
+if (!$result['success'] || $imageData === null) {
     http_response_code(502);
     header("Content-Type: application/json");
-    $msg = $error ?: "Failed to fetch image (HTTP {$httpCode})";
-    echo json_encode(["error" => $msg]);
+    echo json_encode(["error" => $error ?: "Failed to fetch image"]);
     exit;
 }
 

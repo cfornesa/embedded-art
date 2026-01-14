@@ -1,6 +1,6 @@
 // assets/js/builder.js
 
-import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS } from './constants.js';
+import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS, BASE_PATH } from './constants.js';
 
 // -------------------------
 // Safe DOM helpers
@@ -442,7 +442,7 @@ function buildIframe(srcUrl) {
 function renderOutput({ id, slug, adminKey, fallbackSlug }) {
   ensureResultUI(); // rebind in case DOM changed
 
-  const base = location.origin;
+  const base = location.origin + BASE_PATH;
 
   // Prefer server-returned slug, else fallback to requested slug
   const finalSlug = (slug || fallbackSlug || "").trim();
