@@ -21,7 +21,7 @@ declare(strict_types=1);
  *   - Do include a leading slash (except for root, which should be empty string)
  *   - This value should match BASE_PATH in assets/js/constants.js
  */
-const BASE_PATH = '';
+const BASE_PATH = '/threejs';
 
 /**
  * Get the full path with base path prefix

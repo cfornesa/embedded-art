@@ -18,7 +18,7 @@
  *   - Do include a leading slash (except for root, which should be empty string)
  *   - This value should match BASE_PATH in app/lib/config.php
  */
-export const BASE_PATH = '';
+export const BASE_PATH = '/threejs';
 
 /**
  * Helper function to build full paths with base path prefix
