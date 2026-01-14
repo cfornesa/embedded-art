@@ -20,19 +20,29 @@ if (preg_match('#^/?(threejs/)?app/#', $uri)) {
 // API routing: /api/* -> /api/index.php
 // Also handles /threejs/api/* -> /threejs/api/index.php
 if (preg_match('#^(/threejs)?/api/#', $uri)) {
-  $apiScript = preg_match('#^/threejs#', $uri)
+  $isThreejsApi = preg_match('#^/threejs#', $uri);
+  $apiScript = $isThreejsApi
     ? __DIR__ . '/threejs/api/index.php'
     : __DIR__ . '/api/index.php';
 
   if (file_exists($apiScript)) {
-    // Keep the original REQUEST_URI for the API script to parse
+    // Strip /threejs prefix from REQUEST_URI so API script sees /api/* instead of /threejs/api/*
+    // This ensures the API's path parsing (which expects /api/* as first segment) works correctly
+    if ($isThreejsApi) {
+      $_SERVER['REQUEST_URI'] = preg_replace('#^/threejs#', '', $_SERVER['REQUEST_URI']);
+    }
+
     require $apiScript;
     return true;
   }
 }
 
-// Serve static files directly
-if (file_exists(__DIR__ . $uri) && is_file(__DIR__ . $uri)) {
+// Serve static files directly (with path traversal protection)
+$staticPath = realpath(__DIR__ . $uri);
+if ($staticPath !== false
+  && strpos($staticPath, __DIR__ . DIRECTORY_SEPARATOR) === 0
+  && is_file($staticPath)
+) {
   return false; // Let PHP's built-in server handle it
 }
 
