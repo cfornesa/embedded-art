@@ -5,6 +5,33 @@
  * These should match the PHP constants in app/lib/constants.php
  */
 
+/**
+ * BASE_PATH - The subdirectory path where the application is hosted.
+ * 
+ * Examples:
+ *   - If hosted at root (https://example.com/): use ''
+ *   - If hosted at /threejs/ (https://example.com/threejs/): use '/threejs'
+ *   - If hosted at /apps/gallery/ (https://example.com/apps/gallery/): use '/apps/gallery'
+ * 
+ * IMPORTANT: 
+ *   - Do NOT include a trailing slash
+ *   - Do include a leading slash (except for root, which should be empty string)
+ *   - This value should match BASE_PATH in app/lib/config.php
+ */
+export const BASE_PATH = '';
+
+/**
+ * Helper function to build full paths with base path prefix
+ * @param {string} path - The path to prefix (should start with /)
+ * @returns {string} The full path including base path
+ */
+export function basePath(path = '') {
+  if (path === '' || path === '/') {
+    return BASE_PATH || '/';
+  }
+  return BASE_PATH + path;
+}
+
 export const LIMITS = {
   SLUG_MAX_LENGTH: 60,
   URL_MAX_LENGTH: 2048,
@@ -55,9 +82,9 @@ export const SHAPES = [
 ];
 
 export const API_ENDPOINTS = {
-  PIECES: '/api/pieces',
-  HEALTH: '/api/health',
-  DEBUG_DB: '/api/debug/db'
+  PIECES: basePath('/api/pieces'),
+  HEALTH: basePath('/api/health'),
+  DEBUG_DB: basePath('/api/debug/db')
 };
 
 export const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];

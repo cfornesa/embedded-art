@@ -1,5 +1,7 @@
 // assets/js/delete.js
 
+import { API_ENDPOINTS } from './constants.js';
+
 const pieceRefEl = document.querySelector("#pieceRef");
 const adminKeyEl = document.querySelector("#adminKey");
 const confirmEl = document.querySelector("#confirmText");
@@ -35,7 +37,7 @@ async function lookup(ref) {
   lookupPanel.classList.add("d-none");
   lookupJson.textContent = "";
 
-  const res = await fetch(`/api/pieces/${encodeURIComponent(ref)}`, { cache: "no-store" });
+  const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, { cache: "no-store" });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     setMsg(`Lookup failed (${res.status}). ${text ? "Response: " + text : ""}`, "warning");
@@ -69,7 +71,7 @@ form.addEventListener("submit", async (e) => {
   // First, fetch the piece to get configuration backup BEFORE deletion
   let pieceData = null;
   try {
-    const lookupRes = await fetch(`/api/pieces/${encodeURIComponent(ref)}`, {
+    const lookupRes = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, {
       headers: { "X-Admin-Key": adminKey }
     });
     if (lookupRes.ok) {
@@ -81,7 +83,7 @@ form.addEventListener("submit", async (e) => {
 
   setMsg("Deleting…", "warning");
 
-  const res = await fetch(`/api/pieces/${encodeURIComponent(ref)}`, {
+  const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, {
     method: "DELETE",
     headers: { "X-Admin-Key": adminKey }
   });
