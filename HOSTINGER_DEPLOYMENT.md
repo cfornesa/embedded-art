@@ -1,5 +1,21 @@
 # Hostinger Deployment Checklist
 
+## Repository Structure
+
+This repository supports multiple subprojects. The 3D art application is located in the `/threejs/` folder:
+
+```
+/
+├── threejs/           # 3D Art Application
+│   ├── api/
+│   ├── app/
+│   ├── assets/
+│   ├── builder.html
+│   └── ...
+├── other-project/     # (future subprojects)
+└── README.md
+```
+
 ## Pre-Deployment
 
 - [ ] Create MySQL database in cPanel
@@ -12,13 +28,27 @@
 ## Step 1: Upload Files
 
 Via FTP or Git, upload all files to `public_html/` except:
-- `app/data/` (SQLite files - not needed)
-- `test_improvements.php` (test file)
+- `threejs/app/data/` (SQLite files - not needed)
+- `threejs/test_improvements.php` (test file)
 - `.git/` (if using FTP)
+
+Your `public_html` should contain:
+```
+public_html/
+├── threejs/
+│   ├── .htaccess
+│   ├── api/
+│   ├── app/
+│   ├── assets/
+│   ├── builder.html
+│   ├── index.php
+│   └── ...
+└── (other subprojects)
+```
 
 ## Step 2: Create config.php
 
-**File:** `app/lib/config.php`
+**File:** `threejs/app/lib/config.php`
 
 **IMPORTANT:** This file contains sensitive credentials. Never commit it to git! It's already in `.gitignore`.
 
@@ -67,19 +97,36 @@ return [
 
 **Important:** Set file permissions to restrict access:
 ```bash
-chmod 600 app/lib/config.php  # Only owner can read
+chmod 600 threejs/app/lib/config.php  # Only owner can read
 ```
 
 **Note:** All configuration (database, SMTP, CORS, debug) is now in config.php. No code changes needed between Replit and Hostinger!
 
-## Step 3: Verify .htaccess
+## Step 3: Verify BASE_PATH Configuration
 
-Ensure `.htaccess` is uploaded to root:
+The application is configured to run from the `/threejs/` subdirectory. Verify these files have the correct setting:
+
+**PHP** (`threejs/app/lib/base_path.php`):
+```php
+const BASE_PATH = '/threejs';
+```
+
+**JavaScript** (`threejs/assets/js/constants.js`):
+```javascript
+export const BASE_PATH = '/threejs';
+```
+
+## Step 4: Verify .htaccess
+
+Ensure `.htaccess` is uploaded to `threejs/`:
 ```apache
 RewriteEngine On
 
 # Security: block /app from being served
 RewriteRule ^app/ - [F,L]
+
+# Allow direct access to image-proxy.php (self-hosted CORS proxy)
+RewriteRule ^api/image-proxy\.php$ - [L]
 
 # Pretty API routes: /api/* -> /api/index.php
 RewriteRule ^api/(.*)$ api/index.php [L,QSA]
@@ -88,9 +135,9 @@ RewriteRule ^api/(.*)$ api/index.php [L,QSA]
 Options -Indexes
 ```
 
-## Step 4: Test Database Connection
+## Step 5: Test Database Connection
 
-Visit: `https://yourdomain.com/api/health`
+Visit: `https://yourdomain.com/threejs/api/health`
 
 **Expected response:**
 ```json
@@ -110,7 +157,7 @@ Visit: `https://yourdomain.com/api/health`
 ```
 → MySQL credentials are wrong or MySQL not reachable, but app still works via SQLite
 
-## Step 5: Verify Schema Created
+## Step 6: Verify Schema Created
 
 The schema is created automatically on first connection.
 
@@ -123,14 +170,14 @@ DESCRIBE pieces;
 -- Should show all columns including indexes
 ```
 
-## Step 6: Test API Endpoints
+## Step 7: Test API Endpoints
 
 ```bash
 # Health check
-curl https://yourdomain.com/api/health
+curl https://yourdomain.com/threejs/api/health
 
 # Create a test piece
-curl -X POST https://yourdomain.com/api/pieces \
+curl -X POST https://yourdomain.com/threejs/api/pieces \
   -H "Content-Type: application/json" \
   -d '{
     "slug": "test-piece",
@@ -151,18 +198,18 @@ curl -X POST https://yourdomain.com/api/pieces \
   }'
 
 # Retrieve the piece
-curl https://yourdomain.com/api/pieces/test-piece
+curl https://yourdomain.com/threejs/api/pieces/test-piece
 ```
 
-## Step 7: Test Builder UI
+## Step 8: Test Builder UI
 
-1. Visit: `https://yourdomain.com/builder.html`
+1. Visit: `https://yourdomain.com/threejs/builder.html`
 2. Create a test piece
 3. Save the admin key
 4. Test embed URLs
 5. Test delete functionality
 
-## Step 8: Monitor Logs
+## Step 9: Monitor Logs
 
 Check PHP error log for any issues:
 ```bash
@@ -171,9 +218,9 @@ tail -f /path/to/error_log
 
 Look for structured JSON logs from Logger class.
 
-## Step 9: Security Hardening (Optional)
+## Step 10: Security Hardening (Optional)
 
-### Force HTTPS (add to .htaccess):
+### Force HTTPS (add to threejs/.htaccess):
 ```apache
 RewriteCond %{HTTPS} off
 RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
@@ -195,7 +242,7 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 **Fix:**
 1. Check mod_rewrite is enabled
 2. Allow .htaccess overrides in Apache config
-3. Test fallback URL: `/api/index.php/pieces/1`
+3. Test fallback URL: `/threejs/api/index.php/pieces/1`
 
 ### Issue: MySQL connection fails
 **Symptom:** `driver: "sqlite"` with fallback note
@@ -207,12 +254,12 @@ RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 
 ### Issue: Rate limiting not working
 **Symptom:** Can submit >10 requests/minute
-**Cause:** app/data/rate_limits not writable
-**Fix:** `chmod 775 app/data/rate_limits`
+**Cause:** threejs/app/data/rate_limits not writable
+**Fix:** `chmod 775 threejs/app/data/rate_limits`
 
 ### Issue: Pieces not being created
 **Check:**
-1. Database connection: `/api/health`
+1. Database connection: `/threejs/api/health`
 2. Error logs: Look for validation errors
 3. Browser console: Check for CORS errors
 4. Try manual curl to isolate frontend vs backend
@@ -225,6 +272,7 @@ The code is **100% platform-agnostic**. All differences are configured via envir
 
 | Configuration | Replit | Hostinger |
 |---------------|--------|-----------|
+| **Base Path** | `/threejs` | `/threejs` |
 | **Database** | SQLite (auto-fallback) | MySQL via config.php |
 | **SMTP** | config.php or env vars | config.php or env vars |
 | **CORS** | Defaults to `*` | Set ALLOWED_ORIGINS in config.php |
@@ -251,8 +299,8 @@ If issues occur:
 
 ## Success Criteria
 
-- [ ] `/api/health` returns `"driver": "mysql"`
-- [ ] Builder can create pieces
+- [ ] `/threejs/api/health` returns `"driver": "mysql"`
+- [ ] Builder can create pieces at `/threejs/builder.html`
 - [ ] Viewer displays pieces correctly
 - [ ] Delete functionality works
 - [ ] Rate limiting active (test with 11 quick requests)
