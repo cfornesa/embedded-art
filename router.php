@@ -10,6 +10,13 @@
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// Security: Check for null bytes in URI (prevents null byte injection attacks)
+if ($uri === false || strpos($uri, "\0") !== false) {
+  http_response_code(400);
+  echo '400 Bad Request';
+  return false;
+}
+
 // Security: block /app and /threejs/app from being served
 if (preg_match('#^/?(threejs/)?app/#', $uri)) {
   http_response_code(403);
@@ -27,20 +34,30 @@ if (preg_match('#^(/threejs)?/api/#', $uri)) {
 
   if (file_exists($apiScript)) {
     // Strip /threejs prefix from REQUEST_URI so API script sees /api/* instead of /threejs/api/*
-    // This ensures the API's path parsing (which expects /api/* as first segment) works correctly
+    // Save original URI first in case API script or logging needs it
+    $originalRequestUri = $_SERVER['REQUEST_URI'];
+    $_SERVER['ORIGINAL_REQUEST_URI'] = $originalRequestUri;
+
     if ($isThreejsApi) {
       $_SERVER['REQUEST_URI'] = preg_replace('#^/threejs#', '', $_SERVER['REQUEST_URI']);
     }
 
     require $apiScript;
+
+    // Restore original REQUEST_URI after API script completes (in case of any subsequent processing)
+    $_SERVER['REQUEST_URI'] = $originalRequestUri;
     return true;
   }
 }
 
 // Serve static files directly (with path traversal protection)
-$staticPath = realpath(__DIR__ . $uri);
+// Normalize base directory to ensure consistent path comparison
+$baseDir = realpath(__DIR__);
+$staticPath = $baseDir !== false ? realpath($baseDir . $uri) : false;
+
 if ($staticPath !== false
-  && strpos($staticPath, __DIR__ . DIRECTORY_SEPARATOR) === 0
+  && $baseDir !== false
+  && strpos($staticPath, $baseDir . DIRECTORY_SEPARATOR) === 0
   && is_file($staticPath)
 ) {
   return false; // Let PHP's built-in server handle it
