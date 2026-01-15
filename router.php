@@ -10,6 +10,13 @@
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
+// Security: Check for null bytes in URI (prevents null byte injection attacks)
+if ($uri === false || strpos($uri, "\0") !== false) {
+  http_response_code(400);
+  echo '400 Bad Request';
+  return false;
+}
+
 // Security: block /app and /threejs/app from being served
 if (preg_match('#^/?(threejs/)?app/#', $uri)) {
   http_response_code(403);
@@ -20,19 +27,39 @@ if (preg_match('#^/?(threejs/)?app/#', $uri)) {
 // API routing: /api/* -> /api/index.php
 // Also handles /threejs/api/* -> /threejs/api/index.php
 if (preg_match('#^(/threejs)?/api/#', $uri)) {
-  $apiScript = preg_match('#^/threejs#', $uri)
+  $isThreejsApi = preg_match('#^/threejs#', $uri);
+  $apiScript = $isThreejsApi
     ? __DIR__ . '/threejs/api/index.php'
     : __DIR__ . '/api/index.php';
 
   if (file_exists($apiScript)) {
-    // Keep the original REQUEST_URI for the API script to parse
+    // Strip /threejs prefix from REQUEST_URI so API script sees /api/* instead of /threejs/api/*
+    // Save original URI first in case API script or logging needs it
+    $originalRequestUri = $_SERVER['REQUEST_URI'];
+    $_SERVER['ORIGINAL_REQUEST_URI'] = $originalRequestUri;
+
+    if ($isThreejsApi) {
+      $_SERVER['REQUEST_URI'] = preg_replace('#^/threejs#', '', $_SERVER['REQUEST_URI']);
+    }
+
     require $apiScript;
+
+    // Restore original REQUEST_URI after API script completes (in case of any subsequent processing)
+    $_SERVER['REQUEST_URI'] = $originalRequestUri;
     return true;
   }
 }
 
-// Serve static files directly
-if (file_exists(__DIR__ . $uri) && is_file(__DIR__ . $uri)) {
+// Serve static files directly (with path traversal protection)
+// Normalize base directory to ensure consistent path comparison
+$baseDir = realpath(__DIR__);
+$staticPath = $baseDir !== false ? realpath($baseDir . $uri) : false;
+
+if ($staticPath !== false
+  && $baseDir !== false
+  && strpos($staticPath, $baseDir . DIRECTORY_SEPARATOR) === 0
+  && is_file($staticPath)
+) {
   return false; // Let PHP's built-in server handle it
 }
 
