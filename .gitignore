@@ -55,9 +55,11 @@ composer.phar
 
 # Hostinger-only DB credentials (never commit)
 app/lib/config.php
+threejs/app/lib/config.php
 
 # SQLite runtime (dev)
 app/data/
+threejs/app/data/
 *.sqlite
 
 # OS junk
