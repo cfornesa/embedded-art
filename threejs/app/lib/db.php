@@ -57,7 +57,8 @@ function load_config(): array {
     "DB_PASS"   => getenv("DB_PASS") ?: "",
   ];
 
-  $file = __DIR__ . "/config.php";
+  // Load from shared config.php in repository root: /app/lib/config.php
+  $file = __DIR__ . "/../../../app/lib/config.php";
   if (file_exists($file)) {
     $fileCfg = require $file;
     if (is_array($fileCfg)) {
@@ -351,7 +352,7 @@ if (!function_exists("db_debug_info")) {
     $forced = strtolower((string)($cfg["DB_DRIVER"] ?? ""));
     $mysqlPossible = has_mysql_creds($cfg);
 
-    $configFile = __DIR__ . "/config.php";
+    $configFile = __DIR__ . "/../../../app/lib/config.php";
     $hasConfigFile = file_exists($configFile);
 
     $safeCfg = [
