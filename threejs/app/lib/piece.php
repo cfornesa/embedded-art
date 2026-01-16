@@ -68,8 +68,8 @@ function load_smtp_config(): array {
     "SMTP_PASS" => getenv("SMTP_PASS") ?: "",
   ];
 
-  // Load from config.php if it exists (for Hostinger)
-  $file = __DIR__ . "/config.php";
+  // Load from shared config.php in repository root: /app/lib/config.php
+  $file = __DIR__ . "/../../../app/lib/config.php";
   if (file_exists($file)) {
     $fileCfg = require $file;
     if (is_array($fileCfg)) {

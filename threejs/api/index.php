@@ -15,8 +15,9 @@ header("X-Frame-Options: SAMEORIGIN");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 
 // Load API configuration from environment variables and/or config.php
+// Config is located at repository root: /app/lib/config.php
 $apiConfig = [];
-$configFile = __DIR__ . "/../app/lib/config.php";
+$configFile = __DIR__ . "/../../app/lib/config.php";
 if (file_exists($configFile)) {
   $fileConfig = require $configFile;
   if (is_array($fileConfig)) {
