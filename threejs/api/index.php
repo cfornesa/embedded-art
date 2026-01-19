@@ -60,6 +60,15 @@ function respond(int $code, array $payload): void {
 
 try {
   $uri = parse_url($_SERVER["REQUEST_URI"], PHP_URL_PATH) ?: "";
+
+  // Strip BASE_PATH prefix if present (for Hostinger /threejs/ subdirectory deployment)
+  // On Hostinger: /threejs/api/pieces/123 -> /api/pieces/123
+  // On Replit with router.php: already stripped to /api/pieces/123
+  $basePath = '/threejs';
+  if (strpos($uri, $basePath . '/') === 0) {
+    $uri = substr($uri, strlen($basePath));
+  }
+
   $path = trim($uri, "/");         // api/pieces/123
   $segments = $path === "" ? [] : explode("/", $path);
 
