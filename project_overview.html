@@ -19,7 +19,7 @@
       margin: 0 auto;
       padding: 56px 20px 72px;
     }
-    h1 { margin: 0 0 12px; font-size: clamp(2rem, 3vw, 3rem); }
+    h2 { margin: 0 0 12px; font-size: clamp(2rem, 3vw, 3rem); }
     p { color: var(--muted); line-height: 1.6; }
     .grid {
       display: grid;
@@ -38,8 +38,20 @@
   </style>
 </head>
 <body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <h1 class="site-title">Coded Art</h1>
+      <nav class="site-nav" aria-label="Builder menu">
+        <a href="/threejs/builder.html">ThreeJS</a>
+        <a href="/p5/builder.html">P5.js</a>
+        <a href="/aframe/builder.html">A-Frame</a>
+        <a href="/c2/builder.html">C2.js</a>
+      </nav>
+    </div>
+  </header>
+
   <main>
-    <h1>Embedded Art Platform</h1>
+    <h2>Embedded Art Platform</h2>
     <p>Node.js (Express) API with static frontends for Three.js, A-Frame, p5, and c2. The API lives in <code>server/</code> and serves shared endpoints for all frontends.</p>
 
     <div class="grid">
@@ -61,5 +73,10 @@
       </div>
     </div>
   </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span>Copyright &copy; <span class="js-current-year"></span> <a href="https://augmenthumankind.com">Augment Humankind</a></span>
+    </div>
+  </footer>
 </body>
 </html>

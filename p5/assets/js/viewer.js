@@ -103,6 +103,14 @@ function normalizeConfig(rawConfig) {
   };
 }
 
+function getRenderSize() {
+  const rect = wrap.getBoundingClientRect();
+  return {
+    width: Math.max(1, Math.floor(rect.width)),
+    height: Math.max(1, Math.floor(rect.height))
+  };
+}
+
 function buildShapeInstances(p, cfg, textureMap) {
   const instances = [];
   const minDim = Math.min(p.width, p.height);
@@ -201,7 +209,8 @@ async function init() {
       };
 
       p.setup = () => {
-        const canvas = p.createCanvas(p.windowWidth, p.windowHeight, p.WEBGL);
+        const { width, height } = getRenderSize();
+        const canvas = p.createCanvas(width, height, p.WEBGL);
         canvas.parent(wrap);
         p.pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
         p.noStroke();
@@ -209,8 +218,12 @@ async function init() {
       };
 
       p.windowResized = () => {
-        p.resizeCanvas(p.windowWidth, p.windowHeight);
+        const { width, height } = getRenderSize();
+        p.resizeCanvas(width, height);
+        shapes = buildShapeInstances(p, cfg, textureMap);
       };
+
+      window.addEventListener('eap:layout', p.windowResized);
 
       p.draw = () => {
         if (bgImage) {

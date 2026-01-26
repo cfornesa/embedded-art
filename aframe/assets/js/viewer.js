@@ -107,6 +107,25 @@ function wrapWithCorsProxy(url) {
   }
 }
 
+function getRenderSize() {
+  const rect = wrap.getBoundingClientRect();
+  return {
+    width: Math.max(1, Math.floor(rect.width)),
+    height: Math.max(1, Math.floor(rect.height))
+  };
+}
+
+function resizeScene(scene) {
+  const { width, height } = getRenderSize();
+  scene.style.width = `${width}px`;
+  scene.style.height = `${height}px`;
+  if (typeof scene.resize === 'function') {
+    scene.resize();
+  } else if (scene.renderer && typeof scene.renderer.setSize === 'function') {
+    scene.renderer.setSize(width, height);
+  }
+}
+
 function createScene() {
   if (!wrap) throw new Error('Missing #wrap');
   wrap.innerHTML = '';
@@ -115,6 +134,8 @@ function createScene() {
   scene.setAttribute('embedded', '');
   scene.setAttribute('renderer', 'antialias: true; colorManagement: true');
   scene.setAttribute('vr-mode-ui', 'enabled: false');
+  scene.style.width = '100%';
+  scene.style.height = '100%';
 
   const assets = document.createElement('a-assets');
   scene.appendChild(assets);
@@ -218,6 +239,9 @@ function buildFromPieceAFrame(piece) {
 
   const config = piece?.config || {};
   const { scene, assets, sky, camera } = createScene();
+  resizeScene(scene);
+  window.addEventListener('resize', () => resizeScene(scene));
+  window.addEventListener('eap:layout', () => resizeScene(scene));
 
   if (piece?.visibility === 'deleted') {
     showMsg('This piece was deleted.');

@@ -57,6 +57,18 @@
 </head>
 
 <body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <h1 class="site-title">Coded Art</h1>
+      <nav class="site-nav" aria-label="Builder menu">
+        <a href="/threejs/builder.html">ThreeJS</a>
+        <a href="/p5/builder.html">P5.js</a>
+        <a href="/aframe/builder.html">A-Frame</a>
+        <a href="/c2/builder.html">C2.js</a>
+      </nav>
+    </div>
+  </header>
+
   <div class="container py-4">
     <nav aria-label="Breadcrumb" class="mb-3">
       <ol class="breadcrumb small">
@@ -66,7 +78,7 @@
       </ol>
     </nav>
     <div class="d-flex align-items-center justify-content-between mb-3">
-      <h1 class="h4 m-0">A-Frame Piece Builder</h1>
+      <h2 class="h4 m-0">A-Frame Piece Builder</h2>
       <div class="d-flex gap-2">
         <a class="btn btn-outline-light btn-sm" href="edit.html">Edit piece</a>
         <a class="btn btn-outline-light btn-sm" href="delete.html">Delete piece</a>
@@ -328,5 +340,10 @@
   </div>
 
   <script type="module" src="assets/js/builder.js"></script>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span>Copyright &copy; <span class="js-current-year"></span> <a href="https://augmenthumankind.com">Augment Humankind</a></span>
+    </div>
+  </footer>
 </body>
 </html>

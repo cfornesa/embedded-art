@@ -68,12 +68,21 @@ function randomPos(range = 10) {
   return (Math.random() - 0.5) * 0.4 * range;
 }
 
+function getRenderSize() {
+  const rect = wrap.getBoundingClientRect();
+  return {
+    width: Math.max(1, Math.floor(rect.width)),
+    height: Math.max(1, Math.floor(rect.height))
+  };
+}
+
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 2000);
+const initialSize = getRenderSize();
+const camera = new THREE.PerspectiveCamera(60, initialSize.width / initialSize.height, 0.1, 2000);
 camera.position.z = 10;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(innerWidth, innerHeight);
+renderer.setSize(initialSize.width, initialSize.height);
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 wrap.appendChild(renderer.domElement);
 
@@ -85,12 +94,16 @@ const dir = new THREE.DirectionalLight(0xffffff, 0.8);
 dir.position.set(5, 8, 6);
 scene.add(dir);
 
-window.addEventListener("resize", () => {
-  camera.aspect = innerWidth / innerHeight;
+function handleResize() {
+  const { width, height } = getRenderSize();
+  camera.aspect = width / height;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(width, height);
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-});
+}
+
+window.addEventListener("resize", handleResize);
+window.addEventListener("eap:layout", handleResize);
 
 let meshes = [];
 let rotationSpeed = 0.01;
