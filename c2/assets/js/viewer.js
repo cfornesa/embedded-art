@@ -110,6 +110,14 @@ function normalizeConfig(rawConfig) {
   };
 }
 
+function getRenderSize() {
+  const rect = wrap.getBoundingClientRect();
+  return {
+    width: Math.max(1, Math.floor(rect.width)),
+    height: Math.max(1, Math.floor(rect.height))
+  };
+}
+
 function getRendererContext(renderer) {
   if (!renderer) return null;
   if (renderer.ctx) return renderer.ctx;
@@ -298,8 +306,7 @@ async function init() {
     wrap.appendChild(canvas);
 
     const renderer = new c2.Renderer(canvas);
-    let width = window.innerWidth;
-    let height = window.innerHeight;
+    let { width, height } = getRenderSize();
     renderer.size(width, height);
     if (typeof renderer.background === 'function') {
       renderer.background(cfg.bg || '#000000');
@@ -324,12 +331,14 @@ async function init() {
 
     let shapes = buildShapeInstances(width, height, cfg);
 
-    window.addEventListener('resize', () => {
-      width = window.innerWidth;
-      height = window.innerHeight;
+    const handleResize = () => {
+      ({ width, height } = getRenderSize());
       renderer.size(width, height);
       shapes = buildShapeInstances(width, height, cfg);
-    });
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('eap:layout', handleResize);
 
     const renderFrame = () => {
       if (typeof renderer.clear === 'function') {

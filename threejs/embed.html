@@ -10,11 +10,11 @@
   <link rel="stylesheet" href="/shared/theme.css">
   <style>
     html, body { margin:0; height:100%; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    #wrap { height: 100%; }
+    #wrap { position: fixed; left: 0; right: 0; top: var(--header-height, 0px); bottom: var(--footer-height, 0px); }
     #msg {
       position: absolute;
       left: 12px;
-      top: 12px;
+      top: calc(var(--header-height, 0px) + 12px);
       right: 12px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -44,7 +44,7 @@
     })();
   </script>
 </head>
-<body>
+<body class="page-canvas">
   <div id="msg"></div>
   <div id="wrap"></div>
   <script type="module" src="assets/js/viewer.js?v=3"></script>

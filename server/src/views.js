@@ -55,7 +55,7 @@ function renderHome(views) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Embedded Art Platform</title>
+  <title>Coded Art</title>
   <script src="/shared/theme.js"></script>
   <link rel="stylesheet" href="/shared/theme.css" />
   <style>
@@ -71,15 +71,15 @@ function renderHome(views) {
       margin: 0 auto;
       padding: 56px 20px 72px;
     }
-    header {
+    .intro {
       margin-bottom: 32px;
     }
-    h1 {
+    .intro h2 {
       font-size: clamp(2rem, 3vw, 3rem);
       margin: 0 0 12px;
       letter-spacing: -0.02em;
     }
-    header p {
+    .intro p {
       max-width: 720px;
       margin: 0;
       font-size: 1rem;
@@ -141,11 +141,22 @@ function renderHome(views) {
   </style>
 </head>
 <body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <h1 class="site-title">Coded Art</h1>
+      <nav class="site-nav" aria-label="Builder menu">
+        <a href="/threejs/builder.html">ThreeJS</a>
+        <a href="/p5/builder.html">P5.js</a>
+        <a href="/aframe/builder.html">A-Frame</a>
+        <a href="/c2/builder.html">C2.js</a>
+      </nav>
+    </div>
+  </header>
   <main>
-    <header>
-      <h1>Embedded Art Platform</h1>
+    <section class="intro">
+      <h2>Embedded Art Platform</h2>
       <p>Choose a builder to start a new piece, then expand the registry as you add more renderers and workflows.</p>
-    </header>
+    </section>
     <section class="grid">
       ${cards}
     </section>
@@ -153,6 +164,11 @@ function renderHome(views) {
       Example view format: <code>/threejs/view.html?id=piece-abcdef</code> or <code>/p5/view.html?id=piece-abcdef</code>.
     </div>
   </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span>Copyright &copy; <span class="js-current-year"></span> <a href="https://augmenthumankind.com">Augment Humankind</a></span>
+    </div>
+  </footer>
 </body>
 </html>`;
 }
@@ -171,7 +187,7 @@ function renderViewLanding(view, req) {
   <style>
     body { margin: 0; font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--fg); }
     main { max-width: 900px; margin: 0 auto; padding: 64px 20px; }
-    h1 { margin: 0 0 12px; }
+    h2 { margin: 0 0 12px; }
     p { color: var(--muted); line-height: 1.6; }
     .panel { margin-top: 24px; padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); }
     a { color: var(--accent); text-decoration: none; }
@@ -179,14 +195,30 @@ function renderViewLanding(view, req) {
   </style>
 </head>
 <body>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <h1 class="site-title">Coded Art</h1>
+      <nav class="site-nav" aria-label="Builder menu">
+        <a href="/threejs/builder.html">ThreeJS</a>
+        <a href="/p5/builder.html">P5.js</a>
+        <a href="/aframe/builder.html">A-Frame</a>
+        <a href="/c2/builder.html">C2.js</a>
+      </nav>
+    </div>
+  </header>
   <main>
-    <h1>${view.label}</h1>
+    <h2>${view.label}</h2>
     <p>${view.description}</p>
     <div class="panel">
       <p>This placeholder keeps the slug structure intact. Use <code>?id=${sampleId}</code> to fetch the piece configuration when you wire up the renderer.</p>
       <p><a href="/">Back to home</a></p>
     </div>
   </main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <span>Copyright &copy; <span class="js-current-year"></span> <a href="https://augmenthumankind.com">Augment Humankind</a></span>
+    </div>
+  </footer>
 </body>
 </html>`;
 }
