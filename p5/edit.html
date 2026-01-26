@@ -128,18 +128,18 @@
             <div class="form-text">Optional. Must end in .png/.jpg/.jpeg/.webp</div>
           </div>
 
-          <!-- Shapes Section -->
+          <!-- Shapes -->
           <div class="col-12">
-            <div class="section-title mb-2">Shapes</div>
-            <div class="form-text mb-2">Configure counts (0–10 per shape) and sizes (0.1–10). Total instances ≤ 40.</div>
+            <div class="section-title mb-2">2D Shapes</div>
+            <div class="form-text mb-2">Configure counts (0–10 per shape) and sizes in pixels. Total instances ≤ 40. Use fill/stroke toggles to create outlines, solid shapes, and line art.</div>
           </div>
 
-          <!-- BOX -->
+          <!-- CIRCLE -->
           <div class="col-12">
             <div class="card rounded-4">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                  <div class="fw-bold">Box</div>
+                  <div class="fw-bold">Circle</div>
                   <div class="small text-secondary-emphasis">
                     Total instances: <span class="badge badge-soft" id="totalBadge">0</span>
                   </div>
@@ -147,130 +147,217 @@
 
                 <div class="row g-3">
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="boxCount">Number of shapes (0–10)</label>
-                    <input type="range" class="form-range" id="boxCount" min="0" max="10" step="1" value="0">
-                    <div class="small">Value: <span class="badge badge-soft" id="boxCountVal">0</span></div>
+                    <label class="form-label" for="circleCount">Number of shapes (0–10)</label>
+                    <input type="range" class="form-range" id="circleCount" min="0" max="10" step="1" value="0">
+                    <div class="small">Value: <span class="badge badge-soft" id="circleCountVal">0</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="boxSize">Size (0.1–10)</label>
-                    <input type="range" class="form-range" id="boxSize" min="0.1" max="10" step="0.1" value="1">
-                    <div class="small">Value: <span class="badge badge-soft" id="boxSizeVal">1.0</span></div>
+                    <label class="form-label" for="circleSize">Diameter (4–200px)</label>
+                    <input type="range" class="form-range" id="circleSize" min="4" max="200" step="1" value="48">
+                    <div class="small">Value: <span class="badge badge-soft" id="circleSizeVal">48</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="boxColor">Base color</label>
-                    <input type="color" class="form-control form-control-color" id="boxColor" value="#ffffff">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="circleFill">Fill color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="circleFillEnabled" checked>
+                        <label class="form-check-label small" for="circleFillEnabled">Fill</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="circleFill" value="#ffffff">
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="boxTex">Texture image URL</label>
-                    <input class="form-control" id="boxTex" placeholder="https://example.com/texture.png">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="circleStroke">Stroke color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="circleStrokeEnabled" checked>
+                        <label class="form-check-label small" for="circleStrokeEnabled">Stroke</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="circleStroke" value="#0b0d10">
+                    <label class="form-label mt-2" for="circleStrokeWeight">Stroke weight (0–20)</label>
+                    <input type="range" class="form-range" id="circleStrokeWeight" min="0" max="20" step="1" value="2">
+                    <div class="small">Value: <span class="badge badge-soft" id="circleStrokeWeightVal">2</span></div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
 
-          <!-- SPHERE -->
+          <!-- RECTANGLE -->
           <div class="col-12">
             <div class="card rounded-4">
               <div class="card-body">
-                <div class="fw-bold mb-2">Sphere</div>
+                <div class="fw-bold mb-2">Rectangle</div>
 
                 <div class="row g-3">
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="sphereCount">Number of shapes (0–10)</label>
-                    <input type="range" class="form-range" id="sphereCount" min="0" max="10" step="1" value="0">
-                    <div class="small">Value: <span class="badge badge-soft" id="sphereCountVal">0</span></div>
+                    <label class="form-label" for="rectCount">Number of shapes (0–10)</label>
+                    <input type="range" class="form-range" id="rectCount" min="0" max="10" step="1" value="0">
+                    <div class="small">Value: <span class="badge badge-soft" id="rectCountVal">0</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="sphereSize">Size (0.1–10)</label>
-                    <input type="range" class="form-range" id="sphereSize" min="0.1" max="10" step="0.1" value="1">
-                    <div class="small">Value: <span class="badge badge-soft" id="sphereSizeVal">1.0</span></div>
+                    <label class="form-label" for="rectSize">Size (6–240px)</label>
+                    <input type="range" class="form-range" id="rectSize" min="6" max="240" step="1" value="60">
+                    <div class="small">Value: <span class="badge badge-soft" id="rectSizeVal">60</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="sphereColor">Base color</label>
-                    <input type="color" class="form-control form-control-color" id="sphereColor" value="#ffffff">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="rectFill">Fill color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="rectFillEnabled" checked>
+                        <label class="form-check-label small" for="rectFillEnabled">Fill</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="rectFill" value="#ffffff">
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="sphereTex">Texture image URL</label>
-                    <input class="form-control" id="sphereTex" placeholder="https://example.com/texture.jpg">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="rectStroke">Stroke color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="rectStrokeEnabled" checked>
+                        <label class="form-check-label small" for="rectStrokeEnabled">Stroke</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="rectStroke" value="#0b0d10">
+                    <label class="form-label mt-2" for="rectStrokeWeight">Stroke weight (0–20)</label>
+                    <input type="range" class="form-range" id="rectStrokeWeight" min="0" max="20" step="1" value="2">
+                    <div class="small">Value: <span class="badge badge-soft" id="rectStrokeWeightVal">2</span></div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
 
-          <!-- CONE -->
+          <!-- TRIANGLE -->
           <div class="col-12">
             <div class="card rounded-4">
               <div class="card-body">
-                <div class="fw-bold mb-2">Cone</div>
+                <div class="fw-bold mb-2">Triangle</div>
 
                 <div class="row g-3">
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="coneCount">Number of shapes (0–10)</label>
-                    <input type="range" class="form-range" id="coneCount" min="0" max="10" step="1" value="0">
-                    <div class="small">Value: <span class="badge badge-soft" id="coneCountVal">0</span></div>
+                    <label class="form-label" for="triangleCount">Number of shapes (0–10)</label>
+                    <input type="range" class="form-range" id="triangleCount" min="0" max="10" step="1" value="0">
+                    <div class="small">Value: <span class="badge badge-soft" id="triangleCountVal">0</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="coneSize">Size (0.1–10)</label>
-                    <input type="range" class="form-range" id="coneSize" min="0.1" max="10" step="0.1" value="1">
-                    <div class="small">Value: <span class="badge badge-soft" id="coneSizeVal">1.0</span></div>
+                    <label class="form-label" for="triangleSize">Size (6–220px)</label>
+                    <input type="range" class="form-range" id="triangleSize" min="6" max="220" step="1" value="64">
+                    <div class="small">Value: <span class="badge badge-soft" id="triangleSizeVal">64</span></div>
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="coneColor">Base color</label>
-                    <input type="color" class="form-control form-control-color" id="coneColor" value="#ffffff">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="triangleFill">Fill color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="triangleFillEnabled" checked>
+                        <label class="form-check-label small" for="triangleFillEnabled">Fill</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="triangleFill" value="#ffffff">
                   </div>
 
                   <div class="col-12 col-lg-3">
-                    <label class="form-label" for="coneTex">Texture image URL</label>
-                    <input class="form-control" id="coneTex" placeholder="https://example.com/texture.webp">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="triangleStroke">Stroke color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="triangleStrokeEnabled" checked>
+                        <label class="form-check-label small" for="triangleStrokeEnabled">Stroke</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="triangleStroke" value="#0b0d10">
+                    <label class="form-label mt-2" for="triangleStrokeWeight">Stroke weight (0–20)</label>
+                    <input type="range" class="form-range" id="triangleStrokeWeight" min="0" max="20" step="1" value="2">
+                    <div class="small">Value: <span class="badge badge-soft" id="triangleStrokeWeightVal">2</span></div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
 
-          <!-- TORUS -->
+          <!-- LINE -->
           <div class="col-12">
             <div class="card rounded-4">
               <div class="card-body">
-                <div class="fw-bold mb-2">Torus</div>
+                <div class="fw-bold mb-2">Line</div>
 
                 <div class="row g-3">
-                  <div class="col-12 col-lg-3">
-                    <label class="form-label" for="torusCount">Number of shapes (0–10)</label>
-                    <input type="range" class="form-range" id="torusCount" min="0" max="10" step="1" value="0">
-                    <div class="small">Value: <span class="badge badge-soft" id="torusCountVal">0</span></div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label" for="lineCount">Number of lines (0–10)</label>
+                    <input type="range" class="form-range" id="lineCount" min="0" max="10" step="1" value="0">
+                    <div class="small">Value: <span class="badge badge-soft" id="lineCountVal">0</span></div>
                   </div>
 
-                  <div class="col-12 col-lg-3">
-                    <label class="form-label" for="torusSize">Size (0.1–10)</label>
-                    <input type="range" class="form-range" id="torusSize" min="0.1" max="10" step="0.1" value="1">
-                    <div class="small">Value: <span class="badge badge-soft" id="torusSizeVal">1.0</span></div>
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label" for="lineLength">Length (12–300px)</label>
+                    <input type="range" class="form-range" id="lineLength" min="12" max="300" step="1" value="120">
+                    <div class="small">Value: <span class="badge badge-soft" id="lineLengthVal">120</span></div>
                   </div>
 
-                  <div class="col-12 col-lg-3">
-                    <label class="form-label" for="torusColor">Base color</label>
-                    <input type="color" class="form-control form-control-color" id="torusColor" value="#ffffff">
-                  </div>
-
-                  <div class="col-12 col-lg-3">
-                    <label class="form-label" for="torusTex">Texture image URL</label>
-                    <input class="form-control" id="torusTex" placeholder="https://example.com/texture.png">
+                  <div class="col-12 col-lg-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="lineStroke">Stroke color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="lineStrokeEnabled" checked>
+                        <label class="form-check-label small" for="lineStrokeEnabled">Stroke</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="lineStroke" value="#ffffff">
+                    <label class="form-label mt-2" for="lineStrokeWeight">Stroke weight (0–20)</label>
+                    <input type="range" class="form-range" id="lineStrokeWeight" min="0" max="20" step="1" value="2">
+                    <div class="small">Value: <span class="badge badge-soft" id="lineStrokeWeightVal">2</span></div>
                   </div>
                 </div>
+
               </div>
             </div>
           </div>
 
+          <!-- POINT -->
+          <div class="col-12">
+            <div class="card rounded-4">
+              <div class="card-body">
+                <div class="fw-bold mb-2">Point</div>
+
+                <div class="row g-3">
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label" for="pointCount">Number of points (0–10)</label>
+                    <input type="range" class="form-range" id="pointCount" min="0" max="10" step="1" value="0">
+                    <div class="small">Value: <span class="badge badge-soft" id="pointCountVal">0</span></div>
+                  </div>
+
+                  <div class="col-12 col-lg-4">
+                    <label class="form-label" for="pointSize">Point size (1–20px)</label>
+                    <input type="range" class="form-range" id="pointSize" min="1" max="20" step="1" value="4">
+                    <div class="small">Value: <span class="badge badge-soft" id="pointSizeVal">4</span></div>
+                  </div>
+
+                  <div class="col-12 col-lg-4">
+                    <div class="d-flex align-items-center justify-content-between">
+                      <label class="form-label mb-1" for="pointStroke">Stroke color</label>
+                      <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="pointStrokeEnabled" checked>
+                        <label class="form-check-label small" for="pointStrokeEnabled">Stroke</label>
+                      </div>
+                    </div>
+                    <input type="color" class="form-control form-control-color" id="pointStroke" value="#ffffff">
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
           <!-- Action Buttons -->
           <div class="col-12 d-flex gap-2">
             <button class="btn btn-success" type="submit" id="saveBtn">Save changes</button>
