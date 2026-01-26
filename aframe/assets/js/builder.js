@@ -70,17 +70,17 @@ function ensureResultUI() {
     panel = ensureEl("resultPanel", "div", form.parentElement, "card mt-3 d-none");
     panel.innerHTML = `
       <div class="card-body">
-        <h2 class="h6 mb-3 text-light fw-semibold">Output</h2>
+        <h2 class="h6 mb-3 text-body fw-semibold">Output</h2>
 
         <div class="mb-3">
-          <div class="form-label text-light">Admin key</div>
+          <div class="form-label text-body">Admin key</div>
           <div id="adminKeyPlain" style="
             display:inline-block;
             padding:8px 10px;
             border-radius:12px;
-            background:rgba(255,255,255,0.10);
-            border:1px solid rgba(255,255,255,0.18);
-            color:#fff;
+            background:var(--panel);
+            border:1px solid var(--border);
+            color:var(--fg);
             word-break:break-all;
             font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
             font-size:0.95rem;
@@ -91,7 +91,7 @@ function ensureResultUI() {
         </div>
 
         <div class="mb-3">
-          <label class="form-label text-light" for="embedSlugCode">Iframe embed code (slug)</label>
+          <label class="form-label text-body" for="embedSlugCode">Iframe embed code (slug)</label>
           <textarea class="form-control" rows="3" id="embedSlugCode" readonly></textarea>
           <div class="mt-2 d-flex gap-2 flex-wrap">
             <button class="btn btn-outline-light btn-sm" type="button" id="copyEmbedSlugBtn">Copy</button>
@@ -100,7 +100,7 @@ function ensureResultUI() {
         </div>
 
         <div class="mb-2">
-          <label class="form-label text-light" for="embedIdCode">Iframe embed code (id)</label>
+          <label class="form-label text-body" for="embedIdCode">Iframe embed code (id)</label>
           <textarea class="form-control" rows="3" id="embedIdCode" readonly></textarea>
           <div class="mt-2 d-flex gap-2 flex-wrap">
             <button class="btn btn-outline-light btn-sm" type="button" id="copyEmbedIdBtn">Copy</button>
@@ -457,9 +457,9 @@ function renderOutput({ id, slug, adminKey, fallbackSlug }) {
   // Make admin key visibly readable
   if (adminKeyPlain) {
     adminKeyPlain.textContent = adminKey || "(missing admin key)";
-    adminKeyPlain.style.background = "rgba(255,255,255,0.10)";
-    adminKeyPlain.style.border = "1px solid rgba(255,255,255,0.18)";
-    adminKeyPlain.style.color = "#ffffff";
+    adminKeyPlain.style.background = "var(--panel)";
+    adminKeyPlain.style.border = "1px solid var(--border)";
+    adminKeyPlain.style.color = "var(--fg)";
     adminKeyPlain.style.padding = "8px 10px";
     adminKeyPlain.style.borderRadius = "12px";
     adminKeyPlain.style.display = "inline-block";
