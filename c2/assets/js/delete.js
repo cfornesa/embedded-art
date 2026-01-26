@@ -127,6 +127,7 @@ form.addEventListener("submit", async (e) => {
         configSummary += `  - Number of shapes: ${shape.count || 0}\n`;
         configSummary += `  - Size: ${shape.size || 1}\n`;
         configSummary += `  - Base color: ${shape.palette?.baseColor || '#ffffff'}\n`;
+        configSummary += `  - Stroke: ${shape.stroke?.enabled === false ? 'off' : 'on'}\n`;
         configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
       });
     }

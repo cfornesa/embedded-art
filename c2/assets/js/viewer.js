@@ -157,14 +157,18 @@ function buildShapeInstances(width, height, cfg) {
     const size = clamp(Number(shape?.size ?? 1), 0.1, 10) * baseScale;
     const baseColor = shape?.palette?.baseColor || '#ffffff';
     const textureUrl = (shape?.textureUrl || '').trim();
+    const strokeEnabled = shape?.stroke?.enabled ?? true;
 
     for (let i = 0; i < count; i += 1) {
+      const color = jitterColor(baseColor);
       const angle = Math.random() * Math.PI * 2;
       const speed = speedScale * (0.6 + Math.random());
       instances.push({
         type: (shape?.type || 'rect').toLowerCase(),
         size,
-        color: jitterColor(baseColor),
+        color,
+        strokeEnabled,
+        strokeColor: color,
         textureUrl,
         x: padding + Math.random() * spreadX,
         y: padding + Math.random() * spreadY,
@@ -231,20 +235,20 @@ function drawShape(renderer, ctx, shape, textureMap) {
     } else if (ctx) {
       ctx.fillStyle = pattern || shape.color;
     }
-  } else if (typeof renderer.noFill === 'function') {
-    renderer.noFill();
+  } else if (typeof renderer.fill === 'function') {
+    renderer.fill(false);
   }
 
   if (typeof renderer.stroke === 'function') {
-    renderer.stroke(shape.color);
+    renderer.stroke(shape.strokeEnabled ? shape.strokeColor : false);
   } else if (ctx) {
-    ctx.strokeStyle = shape.color;
+    ctx.strokeStyle = shape.strokeEnabled ? shape.strokeColor : 'transparent';
   }
 
-  if (typeof renderer.strokeWeight === 'function') {
-    renderer.strokeWeight(Math.max(1, shape.size * 0.08));
+  if (typeof renderer.lineWidth === 'function') {
+    renderer.lineWidth(shape.strokeEnabled ? Math.max(1, shape.size * 0.08) : 0);
   } else if (ctx) {
-    ctx.lineWidth = Math.max(1, shape.size * 0.08);
+    ctx.lineWidth = shape.strokeEnabled ? Math.max(1, shape.size * 0.08) : 0;
   }
 
   switch (shape.type) {
@@ -342,7 +346,11 @@ async function init() {
 
     const renderFrame = () => {
       if (typeof renderer.clear === 'function') {
-        renderer.clear();
+        if (!bgImage) {
+          renderer.clear(cfg.bg || '#000000');
+        } else {
+          renderer.clear();
+        }
       } else if (ctx) {
         ctx.fillStyle = cfg.bg || '#000000';
         ctx.fillRect(0, 0, width, height);

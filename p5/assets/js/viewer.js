@@ -97,8 +97,6 @@ function normalizeConfig(rawConfig) {
     version: cfg.version || 2,
     bg: typeof cfg.bg === 'string' ? cfg.bg : '#000000',
     bgImageUrl: typeof cfg.bgImageUrl === 'string' ? cfg.bgImageUrl : '',
-    cameraZ: typeof cfg.cameraZ === 'number' ? cfg.cameraZ : 10,
-    rotationSpeed: typeof cfg.rotationSpeed === 'number' ? cfg.rotationSpeed : 0.01,
     shapes
   };
 }
@@ -111,40 +109,41 @@ function getRenderSize() {
   };
 }
 
-function buildShapeInstances(p, cfg, textureMap) {
+function buildShapeInstances(p, cfg) {
   const instances = [];
   const minDim = Math.min(p.width, p.height);
-  const spread = minDim * 0.35;
-  const baseScale = minDim * 0.06;
 
   cfg.shapes.forEach((shape) => {
     const count = Math.max(0, Number.parseInt(shape?.count ?? 0, 10) || 0);
-    const size = clamp(Number(shape?.size ?? 1), 0.1, 10) * baseScale;
-    const baseColor = shape?.palette?.baseColor || '#ffffff';
-    const textureUrl = (shape?.textureUrl || '').trim();
-    const texture = textureUrl ? textureMap.get(textureUrl) : null;
+    const rawType = String(shape?.type || '').toLowerCase();
+    const type = rawType || 'rect';
+    const sizeRaw = Number(shape?.size ?? 24);
+    const size = clamp(sizeRaw, 1, minDim * 0.9);
+
+    const fillEnabled = (type === 'line' || type === 'point')
+      ? false
+      : (shape?.fill?.enabled ?? true);
+    const fillColor = shape?.fill?.color || '#ffffff';
+
+    const strokeEnabled = shape?.stroke?.enabled ?? (type === 'line' || type === 'point');
+    const strokeColor = shape?.stroke?.color || '#000000';
+    const strokeWeightRaw = Number(shape?.stroke?.weight);
+    const strokeWeight = Number.isFinite(strokeWeightRaw)
+      ? strokeWeightRaw
+      : (type === 'point' ? Math.max(1, Math.round(size)) : 1);
 
     for (let i = 0; i < count; i += 1) {
       instances.push({
-        type: (shape?.type || 'box').toLowerCase(),
+        type,
         size,
-        color: jitterColor(p, baseColor),
-        texture,
-        position: {
-          x: (Math.random() - 0.5) * spread,
-          y: (Math.random() - 0.5) * spread,
-          z: (Math.random() - 0.5) * spread
-        },
-        rotation: {
-          x: Math.random() * Math.PI * 2,
-          y: Math.random() * Math.PI * 2,
-          z: Math.random() * Math.PI * 2
-        },
-        spin: {
-          x: (Math.random() - 0.5) * cfg.rotationSpeed,
-          y: (Math.random() - 0.5) * cfg.rotationSpeed,
-          z: (Math.random() - 0.5) * cfg.rotationSpeed
-        }
+        x: Math.random() * p.width,
+        y: Math.random() * p.height,
+        angle: Math.random() * Math.PI * 2,
+        fillEnabled,
+        fillColor: jitterColor(p, fillColor),
+        strokeEnabled,
+        strokeColor: jitterColor(p, strokeColor),
+        strokeWeight
       });
     }
   });
@@ -152,21 +151,52 @@ function buildShapeInstances(p, cfg, textureMap) {
   return instances;
 }
 
+function applyStyle(p, shape) {
+  if (shape.strokeEnabled && shape.strokeWeight > 0) {
+    p.stroke(shape.strokeColor);
+    p.strokeWeight(shape.strokeWeight);
+  } else {
+    p.noStroke();
+  }
+
+  if (shape.fillEnabled) {
+    p.fill(shape.fillColor);
+  } else {
+    p.noFill();
+  }
+}
+
 function drawShape(p, shape) {
   const s = shape.size;
   switch (shape.type) {
-    case 'sphere':
-      p.sphere(s * 0.6, 24, 16);
+    case 'circle':
+      p.circle(shape.x, shape.y, s);
       break;
-    case 'cone':
-      p.cone(s * 0.45, s * 1.1, 24, 1);
+    case 'triangle': {
+      const r = s * 0.6;
+      const a = shape.angle;
+      const x1 = shape.x + Math.cos(a) * r;
+      const y1 = shape.y + Math.sin(a) * r;
+      const x2 = shape.x + Math.cos(a + (Math.PI * 2) / 3) * r;
+      const y2 = shape.y + Math.sin(a + (Math.PI * 2) / 3) * r;
+      const x3 = shape.x + Math.cos(a + (Math.PI * 4) / 3) * r;
+      const y3 = shape.y + Math.sin(a + (Math.PI * 4) / 3) * r;
+      p.triangle(x1, y1, x2, y2, x3, y3);
       break;
-    case 'torus':
-      p.torus(s * 0.45, s * 0.18, 24, 24);
+    }
+    case 'line': {
+      const half = s * 0.5;
+      const dx = Math.cos(shape.angle) * half;
+      const dy = Math.sin(shape.angle) * half;
+      p.line(shape.x - dx, shape.y - dy, shape.x + dx, shape.y + dy);
       break;
-    case 'box':
+    }
+    case 'point':
+      p.point(shape.x, shape.y);
+      break;
+    case 'rect':
     default:
-      p.box(s, s, s);
+      p.rect(shape.x, shape.y, s, s);
       break;
   }
 }
@@ -180,13 +210,7 @@ async function init() {
 
     const sketch = (p) => {
       let shapes = [];
-      const textureMap = new Map();
       let bgImage = null;
-
-      const textureUrls = new Set();
-      cfg.shapes.forEach((shape) => {
-        if (shape?.textureUrl) textureUrls.add(shape.textureUrl);
-      });
 
       p.preload = () => {
         if (cfg.bgImageUrl) {
@@ -197,30 +221,22 @@ async function init() {
             () => { bgImage = null; }
           );
         }
-
-        textureUrls.forEach((url) => {
-          const wrapped = wrapWithCorsProxy(url);
-          p.loadImage(
-            wrapped,
-            (img) => { textureMap.set(url, img); },
-            () => { textureMap.set(url, null); }
-          );
-        });
       };
 
       p.setup = () => {
         const { width, height } = getRenderSize();
-        const canvas = p.createCanvas(width, height, p.WEBGL);
+        const canvas = p.createCanvas(width, height);
         canvas.parent(wrap);
         p.pixelDensity(Math.min(window.devicePixelRatio || 1, 2));
-        p.noStroke();
-        shapes = buildShapeInstances(p, cfg, textureMap);
+        p.rectMode(p.CENTER);
+        p.ellipseMode(p.CENTER);
+        shapes = buildShapeInstances(p, cfg);
       };
 
       p.windowResized = () => {
         const { width, height } = getRenderSize();
         p.resizeCanvas(width, height);
-        shapes = buildShapeInstances(p, cfg, textureMap);
+        shapes = buildShapeInstances(p, cfg);
       };
 
       window.addEventListener('eap:layout', p.windowResized);
@@ -232,31 +248,9 @@ async function init() {
           p.background(cfg.bg || '#000000');
         }
 
-        p.ambientLight(90);
-        p.directionalLight(255, 255, 255, 0.6, 1, 0.4);
-
-        if (typeof p.orbitControl === 'function') {
-          p.orbitControl();
-        }
-
         for (const shape of shapes) {
-          p.push();
-          p.translate(shape.position.x, shape.position.y, shape.position.z);
-          shape.rotation.x += shape.spin.x;
-          shape.rotation.y += shape.spin.y;
-          shape.rotation.z += shape.spin.z;
-          p.rotateX(shape.rotation.x);
-          p.rotateY(shape.rotation.y);
-          p.rotateZ(shape.rotation.z);
-
-          if (shape.texture) {
-            p.texture(shape.texture);
-          } else {
-            p.ambientMaterial(shape.color);
-          }
-
+          applyStyle(p, shape);
           drawShape(p, shape);
-          p.pop();
         }
       };
     };

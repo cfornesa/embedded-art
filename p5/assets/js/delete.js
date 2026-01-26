@@ -125,9 +125,18 @@ form.addEventListener("submit", async (e) => {
       cfg.shapes.forEach((shape) => {
         configSummary += `• ${shape.type ? shape.type.toUpperCase() : 'UNKNOWN'}\n`;
         configSummary += `  - Number of shapes: ${shape.count || 0}\n`;
-        configSummary += `  - Size: ${shape.size || 1}\n`;
-        configSummary += `  - Base color: ${shape.palette?.baseColor || '#ffffff'}\n`;
-        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+        configSummary += `  - Size/Length: ${shape.size || 1}\n`;
+        if (shape.fill || shape.stroke) {
+          configSummary += `  - Fill: ${shape.fill?.enabled ? shape.fill.color : '(none)'}\n`;
+          if (shape.stroke?.enabled) {
+            configSummary += `  - Stroke: ${shape.stroke.color} (weight ${shape.stroke.weight ?? 1})\n`;
+          } else {
+            configSummary += `  - Stroke: (none)\n`;
+          }
+        } else {
+          configSummary += `  - Base color: ${shape.palette?.baseColor || '#ffffff'}\n`;
+          configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+        }
       });
     }
 

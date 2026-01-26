@@ -223,6 +223,11 @@ function getVal(id) {
   return (el?.value || "").toString().trim();
 }
 
+function getBool(id) {
+  const el = $(`#${id}`);
+  return Boolean(el?.checked);
+}
+
 async function copyToClipboard(text) {
   const t = String(text || "");
   if (!t) return;
@@ -252,12 +257,17 @@ function updateBadges() {
   for (const s of SHAPES) {
     const count = getInt(s.countId);
     const size = getFloat(s.sizeId);
+    const strokeWeight = s.strokeWeightId ? getFloat(s.strokeWeightId) : null;
 
     const countVal = $(`#${s.countValId}`);
     const sizeVal = $(`#${s.sizeValId}`);
+    const strokeWeightVal = s.strokeWeightValId ? $(`#${s.strokeWeightValId}`) : null;
 
     if (countVal) countVal.textContent = String(count);
-    if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? size.toFixed(1) : "0.0";
+    if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? String(Math.round(size)) : "0";
+    if (strokeWeightVal && Number.isFinite(strokeWeight)) {
+      strokeWeightVal.textContent = String(Math.round(strokeWeight));
+    }
 
     total += count;
   }
@@ -273,8 +283,10 @@ function updateBadges() {
 for (const s of SHAPES) {
   const c = $(`#${s.countId}`);
   const z = $(`#${s.sizeId}`);
+  const w = s.strokeWeightId ? $(`#${s.strokeWeightId}`) : null;
   c?.addEventListener("input", updateBadges);
   z?.addEventListener("input", updateBadges);
+  w?.addEventListener("input", updateBadges);
 }
 updateBadges();
 
@@ -394,13 +406,19 @@ resetBtn?.addEventListener("click", () => {
   for (const s of SHAPES) {
     const c = $(`#${s.countId}`);
     const z = $(`#${s.sizeId}`);
-    const col = $(`#${s.colorId}`);
-    const tex = $(`#${s.texId}`);
+    const fill = s.fillId ? $(`#${s.fillId}`) : null;
+    const fillToggle = s.fillToggleId ? $(`#${s.fillToggleId}`) : null;
+    const stroke = s.strokeId ? $(`#${s.strokeId}`) : null;
+    const strokeToggle = s.strokeToggleId ? $(`#${s.strokeToggleId}`) : null;
+    const strokeWeight = s.strokeWeightId ? $(`#${s.strokeWeightId}`) : null;
 
     if (c) c.value = "0";
-    if (z) z.value = "1";
-    if (col) col.value = "#ffffff";
-    if (tex) tex.value = "";
+    if (z) z.value = z.defaultValue || String(s.sizeMin ?? 20);
+    if (fill) fill.value = "#ffffff";
+    if (fillToggle) fillToggle.checked = s.supportsFill ? true : false;
+    if (stroke) stroke.value = "#000000";
+    if (strokeToggle) strokeToggle.checked = s.supportsStroke ? true : false;
+    if (strokeWeight) strokeWeight.value = strokeWeight.defaultValue || "2";
   }
 
   if (bgImageUrlEl) bgImageUrlEl.value = "";
@@ -600,9 +618,17 @@ if (!form) {
     let total = 0;
     const shapes = SHAPES.map((s) => {
       const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
-      const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
-      const baseColor = getVal(s.colorId);
-      const textureUrl = getVal(s.texId);
+      const sizeMin = Number.isFinite(s.sizeMin) ? s.sizeMin : LIMITS.SIZE_MIN;
+      const sizeMax = Number.isFinite(s.sizeMax) ? s.sizeMax : LIMITS.SIZE_MAX;
+      const size = Math.max(sizeMin, Math.min(sizeMax, getFloat(s.sizeId)));
+
+      const fillEnabled = s.supportsFill ? getBool(s.fillToggleId) : false;
+      const fillColor = s.supportsFill ? getVal(s.fillId) : "#ffffff";
+      const strokeEnabled = s.supportsStroke ? getBool(s.strokeToggleId) : true;
+      const strokeColor = s.supportsStroke ? getVal(s.strokeId) : "#000000";
+      const strokeWeight = s.strokeWeightId
+        ? Math.max(LIMITS.STROKE_WEIGHT_MIN, Math.min(LIMITS.STROKE_WEIGHT_MAX, getFloat(s.strokeWeightId)))
+        : null;
 
       total += count;
 
@@ -610,20 +636,27 @@ if (!form) {
         type: s.type,
         count,
         size,
-        palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
-        textureUrl: textureUrl || ""
+        fill: {
+          enabled: Boolean(fillEnabled),
+          color: isHexColor(fillColor) ? fillColor : "#ffffff"
+        },
+        stroke: {
+          enabled: Boolean(strokeEnabled),
+          color: isHexColor(strokeColor) ? strokeColor : "#000000",
+          weight: Number.isFinite(strokeWeight) ? strokeWeight : null
+        }
       };
     });
 
-    // FIX: Do NOT block when total==0. Auto-set boxCount = 1 and proceed.
+    // FIX: Do NOT block when total==0. Auto-set the first shape to 1 and proceed.
     if (total <= 0) {
-      const boxDef = SHAPES.find((x) => x.type === "box");
-      if (boxDef) {
-        const boxCountEl = $(`#${boxDef.countId}`);
-        if (boxCountEl) boxCountEl.value = "1";
+      const firstDef = SHAPES[0];
+      if (firstDef) {
+        const countEl = $(`#${firstDef.countId}`);
+        if (countEl) countEl.value = "1";
         // update model too
-        const boxShape = shapes.find((x) => x.type === "box");
-        if (boxShape) boxShape.count = 1;
+        const firstShape = shapes.find((x) => x.type === firstDef.type);
+        if (firstShape) firstShape.count = 1;
         total = 1;
         updateBadges();
       }
@@ -631,24 +664,14 @@ if (!form) {
 
     if (total > LIMITS.TOTAL_INSTANCES_MAX) return setMsg(`Total instances across all shapes must be ${LIMITS.TOTAL_INSTANCES_MAX} or less.`, "danger");
 
-    // validate texture URLs
-    for (const s of shapes) {
-      if (s.textureUrl) {
-        const err = validateImageUrl(s.textureUrl);
-        if (err) return setMsg(`${s.type} texture URL: ${err}`, "warning");
-      }
-    }
-
     const payload = {
       slug: slugNormalized || "", // user-controlled (optional)
       email: email, // required
       visibility: "public",
       config: {
-        version: 2,
+        version: 3,
         bg,
         bgImageUrl: bgImageUrl || "",
-        cameraZ: 10,
-        rotationSpeed: 0.01,
         shapes
       }
     };
@@ -718,9 +741,13 @@ if (!form) {
       payload.config.shapes.forEach((shape) => {
         configSummary += `• ${shape.type.toUpperCase()}\n`;
         configSummary += `  - Number of shapes: ${shape.count}\n`;
-        configSummary += `  - Size: ${shape.size}\n`;
-        configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
-        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+        configSummary += `  - Size/Length: ${shape.size}\n`;
+        configSummary += `  - Fill: ${shape.fill?.enabled ? shape.fill.color : '(none)'}\n`;
+        if (shape.stroke?.enabled) {
+          configSummary += `  - Stroke: ${shape.stroke.color} (weight ${shape.stroke.weight ?? 1})\n`;
+        } else {
+          configSummary += `  - Stroke: (none)\n`;
+        }
       });
 
       setMsg(`Created successfully. <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">View Configuration Backup</summary><pre style="margin-top:8px;background:rgba(0,0,0,0.35);padding:12px;border-radius:8px;white-space:pre-wrap;font-size:0.85em;">${configSummary}</pre></details>`, "success");

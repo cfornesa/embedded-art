@@ -115,6 +115,11 @@ function getVal(id) {
   return (el?.value || "").toString().trim();
 }
 
+function getBool(id) {
+  const el = $(`#${id}`);
+  return Boolean(el?.checked);
+}
+
 // -------------------------
 // Badge updates
 // -------------------------
@@ -124,12 +129,17 @@ function updateBadges() {
   for (const s of SHAPES) {
     const count = getInt(s.countId);
     const size = getFloat(s.sizeId);
+    const strokeWeight = s.strokeWeightId ? getFloat(s.strokeWeightId) : null;
 
     const countVal = $(`#${s.countValId}`);
     const sizeVal = $(`#${s.sizeValId}`);
+    const strokeWeightVal = s.strokeWeightValId ? $(`#${s.strokeWeightValId}`) : null;
 
     if (countVal) countVal.textContent = String(count);
-    if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? size.toFixed(1) : "0.0";
+    if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? String(Math.round(size)) : "0";
+    if (strokeWeightVal && Number.isFinite(strokeWeight)) {
+      strokeWeightVal.textContent = String(Math.round(strokeWeight));
+    }
 
     total += count;
   }
@@ -145,8 +155,10 @@ function updateBadges() {
 for (const s of SHAPES) {
   const c = $(`#${s.countId}`);
   const z = $(`#${s.sizeId}`);
+  const w = s.strokeWeightId ? $(`#${s.strokeWeightId}`) : null;
   c?.addEventListener("input", updateBadges);
   z?.addEventListener("input", updateBadges);
+  w?.addEventListener("input", updateBadges);
 }
 
 // -------------------------
@@ -164,7 +176,7 @@ function populateForm(pieceData) {
   // Shapes
   if (config.shapes && Array.isArray(config.shapes)) {
     for (const shapeData of config.shapes) {
-      const shapeType = shapeData.type;
+      const shapeType = String(shapeData.type || '').toLowerCase();
       const shapeDef = SHAPES.find(s => s.type === shapeType);
       if (!shapeDef) continue;
 
@@ -176,15 +188,29 @@ function populateForm(pieceData) {
       const sizeEl = $(`#${shapeDef.sizeId}`);
       if (sizeEl) sizeEl.value = String(shapeData.size || 1);
 
-      // Set color
-      const colorEl = $(`#${shapeDef.colorId}`);
-      if (colorEl && shapeData.palette && shapeData.palette.baseColor) {
-        colorEl.value = shapeData.palette.baseColor;
+      // Set fill
+      const fillToggle = shapeDef.fillToggleId ? $(`#${shapeDef.fillToggleId}`) : null;
+      const fillEl = shapeDef.fillId ? $(`#${shapeDef.fillId}`) : null;
+      if (fillToggle) {
+        fillToggle.checked = shapeData?.fill?.enabled ?? Boolean(shapeData?.palette?.baseColor);
+      }
+      if (fillEl) {
+        fillEl.value = shapeData?.fill?.color || shapeData?.palette?.baseColor || "#ffffff";
       }
 
-      // Set texture
-      const texEl = $(`#${shapeDef.texId}`);
-      if (texEl) texEl.value = shapeData.textureUrl || "";
+      // Set stroke
+      const strokeToggle = shapeDef.strokeToggleId ? $(`#${shapeDef.strokeToggleId}`) : null;
+      const strokeEl = shapeDef.strokeId ? $(`#${shapeDef.strokeId}`) : null;
+      if (strokeToggle) {
+        strokeToggle.checked = shapeData?.stroke?.enabled ?? false;
+      }
+      if (strokeEl) {
+        strokeEl.value = shapeData?.stroke?.color || "#000000";
+      }
+      const strokeWeightEl = shapeDef.strokeWeightId ? $(`#${shapeDef.strokeWeightId}`) : null;
+      if (strokeWeightEl && Number.isFinite(shapeData?.stroke?.weight)) {
+        strokeWeightEl.value = String(shapeData.stroke.weight);
+      }
     }
   }
 
@@ -329,9 +355,17 @@ if (editorForm) {
     let total = 0;
     const shapes = SHAPES.map((s) => {
       const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
-      const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
-      const baseColor = getVal(s.colorId);
-      const textureUrl = getVal(s.texId);
+      const sizeMin = Number.isFinite(s.sizeMin) ? s.sizeMin : LIMITS.SIZE_MIN;
+      const sizeMax = Number.isFinite(s.sizeMax) ? s.sizeMax : LIMITS.SIZE_MAX;
+      const size = Math.max(sizeMin, Math.min(sizeMax, getFloat(s.sizeId)));
+
+      const fillEnabled = s.supportsFill ? getBool(s.fillToggleId) : false;
+      const fillColor = s.supportsFill ? getVal(s.fillId) : "#ffffff";
+      const strokeEnabled = s.supportsStroke ? getBool(s.strokeToggleId) : true;
+      const strokeColor = s.supportsStroke ? getVal(s.strokeId) : "#000000";
+      const strokeWeight = s.strokeWeightId
+        ? Math.max(LIMITS.STROKE_WEIGHT_MIN, Math.min(LIMITS.STROKE_WEIGHT_MAX, getFloat(s.strokeWeightId)))
+        : null;
 
       total += count;
 
@@ -339,8 +373,15 @@ if (editorForm) {
         type: s.type,
         count,
         size,
-        palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
-        textureUrl: textureUrl || ""
+        fill: {
+          enabled: Boolean(fillEnabled),
+          color: isHexColor(fillColor) ? fillColor : "#ffffff"
+        },
+        stroke: {
+          enabled: Boolean(strokeEnabled),
+          color: isHexColor(strokeColor) ? strokeColor : "#000000",
+          weight: Number.isFinite(strokeWeight) ? strokeWeight : null
+        }
       };
     });
 
@@ -349,24 +390,11 @@ if (editorForm) {
       return;
     }
 
-    // Validate texture URLs
-    for (const s of shapes) {
-      if (s.textureUrl) {
-        const err = validateImageUrl(s.textureUrl);
-        if (err) {
-          setEditorMsg(`${s.type} texture URL: ${err}`, "warning");
-          return;
-        }
-      }
-    }
-
     const payload = {
       config: {
-        version: 2,
+        version: 3,
         bg,
         bgImageUrl: bgImageUrl || "",
-        cameraZ: 10,
-        rotationSpeed: 0.01,
         shapes
       }
     };
@@ -415,9 +443,13 @@ if (editorForm) {
       payload.config.shapes.forEach((shape) => {
         configSummary += `• ${shape.type.toUpperCase()}\n`;
         configSummary += `  - Number of shapes: ${shape.count}\n`;
-        configSummary += `  - Size: ${shape.size}\n`;
-        configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
-        configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
+        configSummary += `  - Size/Length: ${shape.size}\n`;
+        configSummary += `  - Fill: ${shape.fill?.enabled ? shape.fill.color : '(none)'}\n`;
+        if (shape.stroke?.enabled) {
+          configSummary += `  - Stroke: ${shape.stroke.color} (weight ${shape.stroke.weight ?? 1})\n`;
+        } else {
+          configSummary += `  - Stroke: (none)\n`;
+        }
       });
 
       setEditorMsg(`✓ Changes saved successfully! <details style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">View Configuration Backup</summary><pre style="margin-top:8px;background:rgba(0,0,0,0.35);padding:12px;border-radius:8px;white-space:pre-wrap;font-size:0.85em;">${configSummary}</pre></details>`, "success");
