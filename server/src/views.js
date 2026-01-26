@@ -8,10 +8,10 @@ const viewRegistry = [
   },
   {
     slug: 'p5',
-    label: 'p5.js View',
-    path: '/p5',
-    description: 'Placeholder route for future p5.js sketches.',
-    status: 'placeholder',
+    label: 'p5.js Viewer',
+    path: '/p5/view.html',
+    description: 'p5.js view for saved pieces.',
+    status: 'active',
   },
   {
     slug: 'aframe',
@@ -147,7 +147,7 @@ function renderHome(views) {
       ${cards}
     </section>
     <div class="slug-note">
-      Example link format: <code>/threejs/view.html?id=piece-abcdef</code> or <code>/p5?id=piece-abcdef</code>.
+      Example link format: <code>/threejs/view.html?id=piece-abcdef</code> or <code>/p5/view.html?id=piece-abcdef</code>.
     </div>
   </main>
 </body>
@@ -189,7 +189,7 @@ function renderViewLanding(view, req) {
 
 function registerViewRoutes(app) {
   for (const view of viewRegistry) {
-    if (view.path === '/threejs/view.html' || view.path === '/aframe/view.html') continue;
+    if (view.path === '/threejs/view.html' || view.path === '/aframe/view.html' || view.path === '/p5/view.html') continue;
     app.get([view.path, `${view.path}/`], (req, res) => {
       res.type('html').send(renderViewLanding(view, req));
     });
