@@ -4,21 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Embedded Art Platform – Overview</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/theme.css" />
   <style>
-    :root {
-      --bg: #f4f1ea;
-      --ink: #1a1a1a;
-      --muted: #666;
-      --accent: #d77d2d;
-      --card: #ffffff;
-      --border: #e3d9cc;
-    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
-      background: radial-gradient(circle at top, #fff7e8 0%, var(--bg) 45%, #f0ebe1 100%);
-      color: var(--ink);
+      background: radial-gradient(circle at top, var(--bg-glow) 0%, var(--bg) 45%, var(--bg-deep) 100%);
+      color: var(--fg);
     }
     main {
       max-width: 960px;
@@ -38,7 +32,7 @@
       border: 1px solid var(--border);
       border-radius: 16px;
       padding: 18px 20px;
-      box-shadow: 0 10px 20px rgba(26, 26, 26, 0.08);
+      box-shadow: var(--shadow);
     }
     code { font-family: "JetBrains Mono", Consolas, monospace; }
   </style>

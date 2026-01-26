@@ -1,31 +1,41 @@
 const viewRegistry = [
   {
     slug: 'threejs',
-    label: 'Three.js Viewer',
+    label: 'ThreeJS',
     path: '/threejs/view.html',
-    description: 'WebGL view for saved 3D pieces.',
+    cardPath: '/threejs',
+    description: 'Build and preview ThreeJS-based pieces.',
     status: 'active',
   },
   {
     slug: 'p5',
-    label: 'p5.js Viewer',
+    label: 'P5.js',
     path: '/p5/view.html',
-    description: 'p5.js view for saved pieces.',
+    cardPath: '/p5',
+    description: 'Create generative sketches with P5.js.',
     status: 'active',
   },
   {
     slug: 'aframe',
-    label: 'A-Frame Viewer',
+    label: 'A-Frame',
     path: '/aframe/view.html',
-    description: 'A-Frame view for saved 3D pieces.',
+    cardPath: '/aframe',
+    description: 'Build immersive scenes with A-Frame.',
+    status: 'active',
+  },
+  {
+    slug: 'c2',
+    label: 'C2.js',
+    path: '/c2/view.html',
+    cardPath: '/c2',
+    description: 'Prototype pieces with the C2.js builder.',
     status: 'active',
   },
 ];
 
 function renderHome(views) {
-  const sampleId = 'piece-abcdef';
   const cards = views.map((view) => {
-    const href = `${view.path}?id=${sampleId}`;
+    const href = view.cardPath ?? view.path;
     const status = view.status === 'placeholder' ? 'Coming soon' : 'Live';
     return `
       <article class="card">
@@ -35,7 +45,7 @@ function renderHome(views) {
           <span class="pill">/${view.slug}</span>
           <span class="pill">${status}</span>
         </div>
-        <a class="link" href="${href}">Open view</a>
+        <a class="link" href="${href}">Open builder</a>
       </article>
     `;
   }).join('');
@@ -46,22 +56,15 @@ function renderHome(views) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Embedded Art Platform</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/theme.css" />
   <style>
-    :root {
-      color-scheme: light;
-      --bg: #f4f1ea;
-      --ink: #1a1a1a;
-      --accent: #d77d2d;
-      --card: #ffffff;
-      --muted: #666;
-      --border: #e3d9cc;
-    }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
-      background: radial-gradient(circle at top, #fff7e8 0%, var(--bg) 45%, #f0ebe1 100%);
-      color: var(--ink);
+      background: radial-gradient(circle at top, var(--bg-glow) 0%, var(--bg) 45%, var(--bg-deep) 100%);
+      color: var(--fg);
     }
     main {
       max-width: 1080px;
@@ -94,7 +97,7 @@ function renderHome(views) {
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 20px 22px;
-      box-shadow: 0 12px 24px rgba(26, 26, 26, 0.08);
+      box-shadow: var(--shadow);
     }
     .card h2 {
       margin: 0 0 8px;
@@ -112,8 +115,8 @@ function renderHome(views) {
       margin-bottom: 12px;
     }
     .pill {
-      background: #f7efe4;
-      border: 1px solid var(--border);
+      background: var(--pill-bg);
+      border: 1px solid var(--pill-border);
       border-radius: 999px;
       padding: 4px 10px;
       font-size: 0.75rem;
@@ -130,7 +133,7 @@ function renderHome(views) {
       padding: 16px 18px;
       border-radius: 14px;
       border: 1px dashed var(--border);
-      background: #fffaf2;
+      background: var(--panel);
       color: var(--muted);
       font-size: 0.95rem;
     }
@@ -141,13 +144,13 @@ function renderHome(views) {
   <main>
     <header>
       <h1>Embedded Art Platform</h1>
-      <p>Start with the Three.js view, then add new renderers by registering a new slug in the view registry. Each view keeps the same <code>?id=slug</code> structure so existing links continue to work.</p>
+      <p>Choose a builder to start a new piece, then expand the registry as you add more renderers and workflows.</p>
     </header>
     <section class="grid">
       ${cards}
     </section>
     <div class="slug-note">
-      Example link format: <code>/threejs/view.html?id=piece-abcdef</code> or <code>/p5/view.html?id=piece-abcdef</code>.
+      Example view format: <code>/threejs/view.html?id=piece-abcdef</code> or <code>/p5/view.html?id=piece-abcdef</code>.
     </div>
   </main>
 </body>
@@ -163,13 +166,14 @@ function renderViewLanding(view, req) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${view.label}</title>
+  <script src="/shared/theme.js"></script>
+  <link rel="stylesheet" href="/shared/theme.css" />
   <style>
-    :root { --bg: #0e0d0b; --ink: #f2f2f2; --accent: #d77d2d; }
-    body { margin: 0; font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--ink); }
+    body { margin: 0; font-family: "Space Grotesk", "Helvetica Neue", Arial, sans-serif; background: var(--bg); color: var(--fg); }
     main { max-width: 900px; margin: 0 auto; padding: 64px 20px; }
     h1 { margin: 0 0 12px; }
-    p { color: #c7c7c7; line-height: 1.6; }
-    .panel { margin-top: 24px; padding: 18px; border-radius: 14px; background: rgba(255,255,255,0.08); }
+    p { color: var(--muted); line-height: 1.6; }
+    .panel { margin-top: 24px; padding: 18px; border-radius: 14px; background: var(--panel); border: 1px solid var(--border); }
     a { color: var(--accent); text-decoration: none; }
     code { font-family: "JetBrains Mono", Consolas, monospace; }
   </style>
@@ -189,7 +193,7 @@ function renderViewLanding(view, req) {
 
 function registerViewRoutes(app) {
   for (const view of viewRegistry) {
-    if (view.path === '/threejs/view.html' || view.path === '/aframe/view.html' || view.path === '/p5/view.html') continue;
+    if (view.path === '/threejs/view.html' || view.path === '/aframe/view.html' || view.path === '/p5/view.html' || view.path === '/c2/view.html') continue;
     app.get([view.path, `${view.path}/`], (req, res) => {
       res.type('html').send(renderViewLanding(view, req));
     });

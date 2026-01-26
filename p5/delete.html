@@ -5,25 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Delete Piece</title>
 
-  <link rel="icon" href="data:,">
+  
+  <script src="/shared/theme.js"></script>
+<link rel="icon" href="data:,">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 
+  <link rel="stylesheet" href="/shared/theme.css">
   <style>
-    :root{
-      --fg: #e9eef5;
-      --muted: rgba(233,238,245,.72);
-      --panel: rgba(255,255,255,.05);
-      --border: rgba(255,255,255,.10);
-      --inputbg: rgba(0,0,0,.18);
-    }
-    body { background: #0b0d10; color: var(--fg); }
+    body { background: var(--bg); color: var(--fg); }
     .card { background: var(--panel); border: 1px solid var(--border); }
-    .form-label { color: rgba(233,238,245,.96) !important; font-weight: 600; }
+    .form-label { color: var(--fg) !important; font-weight: 600; }
     .form-text { color: var(--muted) !important; }
     input, textarea {
       background-color: var(--inputbg) !important;
       color: var(--fg) !important;
-      border-color: rgba(255,255,255,.18) !important;
+      border-color: var(--border) !important;
     }
   </style>
 </head>

@@ -75,8 +75,18 @@ app.get(`${BASE_PATH}/`, (req, res) => {
   res.redirect(302, `${BASE_PATH}/builder.html`);
 });
 
+const rootDir = path.join(__dirname, '..', '..');
+
+// Serve project overview without the .html suffix
+app.get(['/project_overview', '/project_overview/'], (req, res) => {
+  res.sendFile(path.join(rootDir, 'project_overview.html'));
+});
+
+// Shared theme assets
+app.use('/shared', express.static(path.join(rootDir, 'shared'), { index: false }));
+
 // Serve static Three.js app
-const threejsDir = path.join(__dirname, '..', '..', 'threejs');
+const threejsDir = path.join(rootDir, 'threejs');
 app.use(BASE_PATH, express.static(threejsDir, { index: false }));
 
 // Redirect /aframe to its builder
@@ -96,11 +106,11 @@ app.get('/p5/', (req, res) => {
 });
 
 // Serve static A-Frame app
-const aframeDir = path.join(__dirname, '..', '..', 'aframe');
+const aframeDir = path.join(rootDir, 'aframe');
 app.use('/aframe', express.static(aframeDir, { index: false }));
 
 // Serve static p5 app
-const p5Dir = path.join(__dirname, '..', '..', 'p5');
+const p5Dir = path.join(rootDir, 'p5');
 app.use('/p5', express.static(p5Dir, { index: false }));
 
 // Redirect /c2 to its builder
@@ -112,7 +122,7 @@ app.get('/c2/', (req, res) => {
 });
 
 // Serve static c2 app
-const c2Dir = path.join(__dirname, '..', '..', 'c2');
+const c2Dir = path.join(rootDir, 'c2');
 app.use('/c2', express.static(c2Dir, { index: false }));
 
 // JSON parse errors

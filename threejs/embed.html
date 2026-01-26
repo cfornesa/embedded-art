@@ -4,9 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Embed</title>
-  <link rel="icon" href="data:,">
+  
+  <script src="/shared/theme.js"></script>
+<link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/shared/theme.css">
   <style>
-    html, body { margin:0; height:100%; background:#0b0d10; color:#e9eef5; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    html, body { margin:0; height:100%; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
     #wrap { height: 100%; }
     #msg {
       position: absolute;
@@ -15,9 +18,9 @@
       right: 12px;
       padding: 10px 12px;
       border-radius: 12px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.12);
-      color: #e9eef5;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--fg);
       font-size: 14px;
       line-height: 1.35;
       display: none;
