@@ -31,14 +31,20 @@ registerViewRoutes(app);
 // API routes (support both /api and /threejs/api)
 app.use('/api', apiRouter);
 app.use(`${BASE_PATH}/api`, apiRouter);
+app.use('/aframe/api', apiRouter);
 
 // Image proxy (legacy .php path)
 app.get('/api/image-proxy.php', imageProxyHandler);
 app.get(`${BASE_PATH}/api/image-proxy.php`, imageProxyHandler);
+app.get('/aframe/api/image-proxy.php', imageProxyHandler);
 
 // Block direct access to server-side PHP/app files.
 app.use((req, res, next) => {
   if (req.path.startsWith(`${BASE_PATH}/app`)) {
+    res.status(403).send('Forbidden');
+    return;
+  }
+  if (req.path.startsWith('/aframe/app')) {
     res.status(403).send('Forbidden');
     return;
   }
@@ -60,6 +66,18 @@ app.get(`${BASE_PATH}/`, (req, res) => {
 // Serve static Three.js app
 const threejsDir = path.join(__dirname, '..', '..', 'threejs');
 app.use(BASE_PATH, express.static(threejsDir, { index: false }));
+
+// Redirect /aframe to its builder
+app.get('/aframe', (req, res) => {
+  res.redirect(302, '/aframe/builder.html');
+});
+app.get('/aframe/', (req, res) => {
+  res.redirect(302, '/aframe/builder.html');
+});
+
+// Serve static A-Frame app
+const aframeDir = path.join(__dirname, '..', '..', 'aframe');
+app.use('/aframe', express.static(aframeDir, { index: false }));
 
 // JSON parse errors
 app.use((err, req, res, next) => {
