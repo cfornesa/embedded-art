@@ -17,7 +17,6 @@ const {
 const { getPool, ensureSchema, dbHealth, dbDebugInfo, mysqlDebugInfo } = require('../db');
 const {
   sendPieceCreatedEmail,
-  sendPieceUpdatedEmail,
   sendPieceDeletedEmail,
 } = require('../email');
 
@@ -369,21 +368,7 @@ router.put('/pieces/:ref', async (req, res) => {
       return;
     }
 
-    let emailSent = false;
-    if (piece.email) {
-      const baseUrl = buildBaseUrl(req);
-      try {
-        emailSent = await sendPieceUpdatedEmail({
-          toEmail: String(piece.email),
-          pieceId: Number(piece.id),
-          pieceSlug: String(piece.slug),
-          config: newConfig,
-          baseUrl,
-        });
-      } catch (error) {
-        Logger.warning('email_send_failed', { error: error.message }, req);
-      }
-    }
+    const emailSent = false;
 
     Logger.audit('piece_updated', {
       id: Number(piece.id),
