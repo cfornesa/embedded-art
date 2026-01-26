@@ -1,0 +1,13 @@
+RewriteEngine On
+
+# Security: block /app from being served
+RewriteRule ^app/ - [F,L]
+
+# Allow direct access to image-proxy.php (self-hosted CORS proxy)
+RewriteRule ^api/image-proxy\.php$ - [L]
+
+# Pretty API routes: /api/* -> /api/index.php (keep URL)
+RewriteRule ^api/(.*)$ api/index.php [L,QSA]
+
+# Disable directory listing
+Options -Indexes

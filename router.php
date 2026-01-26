@@ -17,21 +17,22 @@ if ($uri === false || strpos($uri, "\0") !== false) {
   return false;
 }
 
-// Security: block /app, /threejs/app, and /aframe/app from being served
-if (preg_match('#^/?(threejs/|aframe/)?app/#', $uri)) {
+// Security: block /app, /threejs/app, /aframe/app, and /p5/app from being served
+if (preg_match('#^/?(threejs/|aframe/|p5/)?app/#', $uri)) {
   http_response_code(403);
   echo '403 Forbidden';
   return false;
 }
 
 // API routing: /api/* -> /api/index.php
-// Also handles /threejs/api/* -> /threejs/api/index.php and /aframe/api/* -> /aframe/api/index.php
-if (preg_match('#^/(threejs|aframe)?/api/#', $uri)) {
+// Also handles /threejs/api/* -> /threejs/api/index.php, /aframe/api/* -> /aframe/api/index.php, and /p5/api/* -> /p5/api/index.php
+if (preg_match('#^/(threejs|aframe|p5)?/api/#', $uri)) {
   $isThreejsApi = preg_match('#^/threejs#', $uri);
   $isAframeApi = preg_match('#^/aframe#', $uri);
+  $isP5Api = preg_match('#^/p5#', $uri);
   $apiScript = $isAframeApi
     ? __DIR__ . '/aframe/api/index.php'
-    : ($isThreejsApi ? __DIR__ . '/threejs/api/index.php' : __DIR__ . '/api/index.php');
+    : ($isP5Api ? __DIR__ . '/p5/api/index.php' : ($isThreejsApi ? __DIR__ . '/threejs/api/index.php' : __DIR__ . '/api/index.php'));
 
   if (file_exists($apiScript)) {
     // Strip /threejs prefix from REQUEST_URI so API script sees /api/* instead of /threejs/api/*
@@ -43,6 +44,8 @@ if (preg_match('#^/(threejs|aframe)?/api/#', $uri)) {
       $_SERVER['REQUEST_URI'] = preg_replace('#^/threejs#', '', $_SERVER['REQUEST_URI']);
     } elseif ($isAframeApi) {
       $_SERVER['REQUEST_URI'] = preg_replace('#^/aframe#', '', $_SERVER['REQUEST_URI']);
+    } elseif ($isP5Api) {
+      $_SERVER['REQUEST_URI'] = preg_replace('#^/p5#', '', $_SERVER['REQUEST_URI']);
     }
 
     require $apiScript;
