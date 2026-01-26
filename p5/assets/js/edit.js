@@ -168,8 +168,6 @@ function populateForm(pieceData) {
   if (!pieceData || !pieceData.config) return;
 
   const config = pieceData.config;
-  const isLegacy = Number(config.version || 2) < 3;
-  const legacyTypeMap = { box: 'rect', sphere: 'circle', cone: 'triangle', torus: 'line' };
 
   // Background
   if (bgColorEl && config.bg) bgColorEl.value = config.bg;
@@ -179,8 +177,7 @@ function populateForm(pieceData) {
   if (config.shapes && Array.isArray(config.shapes)) {
     for (const shapeData of config.shapes) {
       const shapeType = String(shapeData.type || '').toLowerCase();
-      const normalizedType = legacyTypeMap[shapeType] || shapeType;
-      const shapeDef = SHAPES.find(s => s.type === normalizedType);
+      const shapeDef = SHAPES.find(s => s.type === shapeType);
       if (!shapeDef) continue;
 
       // Set count
@@ -189,11 +186,7 @@ function populateForm(pieceData) {
 
       // Set size
       const sizeEl = $(`#${shapeDef.sizeId}`);
-      if (sizeEl) {
-        const rawSize = Number(shapeData.size || 1);
-        const scaled = isLegacy ? Math.round(rawSize * 20) : rawSize;
-        sizeEl.value = String(scaled);
-      }
+      if (sizeEl) sizeEl.value = String(shapeData.size || 1);
 
       // Set fill
       const fillToggle = shapeDef.fillToggleId ? $(`#${shapeDef.fillToggleId}`) : null;

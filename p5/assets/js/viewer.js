@@ -109,39 +109,24 @@ function getRenderSize() {
   };
 }
 
-const LEGACY_TYPE_MAP = {
-  box: 'rect',
-  sphere: 'circle',
-  cone: 'triangle',
-  torus: 'line'
-};
-
 function buildShapeInstances(p, cfg) {
   const instances = [];
   const minDim = Math.min(p.width, p.height);
-  const legacyScale = minDim * 0.12;
-  const isLegacy = Number(cfg.version || 2) < 3;
 
   cfg.shapes.forEach((shape) => {
     const count = Math.max(0, Number.parseInt(shape?.count ?? 0, 10) || 0);
     const rawType = String(shape?.type || '').toLowerCase();
-    const type = isLegacy ? (LEGACY_TYPE_MAP[rawType] || 'rect') : (rawType || 'rect');
-    const sizeRaw = Number(shape?.size ?? (isLegacy ? 1 : 24));
-    const size = isLegacy ? clamp(sizeRaw, 0.1, 10) * legacyScale : clamp(sizeRaw, 1, minDim * 0.9);
+    const type = rawType || 'rect';
+    const sizeRaw = Number(shape?.size ?? 24);
+    const size = clamp(sizeRaw, 1, minDim * 0.9);
 
     const fillEnabled = (type === 'line' || type === 'point')
       ? false
-      : (isLegacy ? true : (shape?.fill?.enabled ?? true));
-    const fillColor = isLegacy
-      ? (shape?.palette?.baseColor || '#ffffff')
-      : (shape?.fill?.color || '#ffffff');
+      : (shape?.fill?.enabled ?? true);
+    const fillColor = shape?.fill?.color || '#ffffff';
 
-    const strokeEnabled = isLegacy
-      ? false
-      : (shape?.stroke?.enabled ?? (type === 'line' || type === 'point'));
-    const strokeColor = isLegacy
-      ? fillColor
-      : (shape?.stroke?.color || '#000000');
+    const strokeEnabled = shape?.stroke?.enabled ?? (type === 'line' || type === 'point');
+    const strokeColor = shape?.stroke?.color || '#000000';
     const strokeWeightRaw = Number(shape?.stroke?.weight);
     const strokeWeight = Number.isFinite(strokeWeightRaw)
       ? strokeWeightRaw

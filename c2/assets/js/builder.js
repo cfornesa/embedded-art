@@ -223,6 +223,11 @@ function getVal(id) {
   return (el?.value || "").toString().trim();
 }
 
+function getBool(id) {
+  const el = $(`#${id}`);
+  return Boolean(el?.checked);
+}
+
 async function copyToClipboard(text) {
   const t = String(text || "");
   if (!t) return;
@@ -395,11 +400,13 @@ resetBtn?.addEventListener("click", () => {
     const c = $(`#${s.countId}`);
     const z = $(`#${s.sizeId}`);
     const col = $(`#${s.colorId}`);
+    const strokeToggle = s.strokeToggleId ? $(`#${s.strokeToggleId}`) : null;
     const tex = $(`#${s.texId}`);
 
     if (c) c.value = "0";
     if (z) z.value = "1";
     if (col) col.value = "#ffffff";
+    if (strokeToggle) strokeToggle.checked = true;
     if (tex) tex.value = "";
   }
 
@@ -602,6 +609,7 @@ if (!form) {
       const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
       const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
       const baseColor = getVal(s.colorId);
+      const strokeEnabled = s.strokeToggleId ? getBool(s.strokeToggleId) : true;
       const textureUrl = getVal(s.texId);
 
       total += count;
@@ -611,6 +619,7 @@ if (!form) {
         count,
         size,
         palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
+        stroke: { enabled: Boolean(strokeEnabled) },
         textureUrl: textureUrl || ""
       };
     });
@@ -720,6 +729,7 @@ if (!form) {
         configSummary += `  - Number of shapes: ${shape.count}\n`;
         configSummary += `  - Size: ${shape.size}\n`;
         configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
+        configSummary += `  - Stroke: ${shape.stroke?.enabled ? 'on' : 'off'}\n`;
         configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
       });
 

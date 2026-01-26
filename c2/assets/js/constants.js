@@ -48,6 +48,7 @@ export const SHAPES = [
     countId: "rectCount",
     sizeId: "rectSize",
     colorId: "rectColor",
+    strokeToggleId: "rectStrokeEnabled",
     texId: "rectTex",
     countValId: "rectCountVal",
     sizeValId: "rectSizeVal"
@@ -57,6 +58,7 @@ export const SHAPES = [
     countId: "circleCount",
     sizeId: "circleSize",
     colorId: "circleColor",
+    strokeToggleId: "circleStrokeEnabled",
     texId: "circleTex",
     countValId: "circleCountVal",
     sizeValId: "circleSizeVal"
@@ -66,6 +68,7 @@ export const SHAPES = [
     countId: "triangleCount",
     sizeId: "triangleSize",
     colorId: "triangleColor",
+    strokeToggleId: "triangleStrokeEnabled",
     texId: "triangleTex",
     countValId: "triangleCountVal",
     sizeValId: "triangleSizeVal"
@@ -75,6 +78,7 @@ export const SHAPES = [
     countId: "lineCount",
     sizeId: "lineSize",
     colorId: "lineColor",
+    strokeToggleId: "lineStrokeEnabled",
     texId: "lineTex",
     countValId: "lineCountVal",
     sizeValId: "lineSizeVal"

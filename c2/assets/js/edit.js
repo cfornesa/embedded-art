@@ -115,6 +115,11 @@ function getVal(id) {
   return (el?.value || "").toString().trim();
 }
 
+function getBool(id) {
+  const el = $(`#${id}`);
+  return Boolean(el?.checked);
+}
+
 // -------------------------
 // Badge updates
 // -------------------------
@@ -180,6 +185,12 @@ function populateForm(pieceData) {
       const colorEl = $(`#${shapeDef.colorId}`);
       if (colorEl && shapeData.palette && shapeData.palette.baseColor) {
         colorEl.value = shapeData.palette.baseColor;
+      }
+
+      // Set stroke toggle (default on)
+      const strokeToggle = shapeDef.strokeToggleId ? $(`#${shapeDef.strokeToggleId}`) : null;
+      if (strokeToggle) {
+        strokeToggle.checked = shapeData?.stroke?.enabled ?? true;
       }
 
       // Set texture
@@ -331,6 +342,7 @@ if (editorForm) {
       const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
       const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
       const baseColor = getVal(s.colorId);
+      const strokeEnabled = s.strokeToggleId ? getBool(s.strokeToggleId) : true;
       const textureUrl = getVal(s.texId);
 
       total += count;
@@ -340,6 +352,7 @@ if (editorForm) {
         count,
         size,
         palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
+        stroke: { enabled: Boolean(strokeEnabled) },
         textureUrl: textureUrl || ""
       };
     });
@@ -417,6 +430,7 @@ if (editorForm) {
         configSummary += `  - Number of shapes: ${shape.count}\n`;
         configSummary += `  - Size: ${shape.size}\n`;
         configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
+        configSummary += `  - Stroke: ${shape.stroke?.enabled ? 'on' : 'off'}\n`;
         configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
       });
 
