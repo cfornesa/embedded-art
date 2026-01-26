@@ -14,11 +14,11 @@ const viewRegistry = [
     status: 'placeholder',
   },
   {
-    slug: 'a-frame',
-    label: 'A-Frame View',
-    path: '/a-frame',
-    description: 'Placeholder route for future A-Frame scenes.',
-    status: 'placeholder',
+    slug: 'aframe',
+    label: 'A-Frame Viewer',
+    path: '/aframe/view.html',
+    description: 'A-Frame view for saved 3D pieces.',
+    status: 'active',
   },
 ];
 
@@ -189,7 +189,7 @@ function renderViewLanding(view, req) {
 
 function registerViewRoutes(app) {
   for (const view of viewRegistry) {
-    if (view.path === '/threejs/view.html') continue;
+    if (view.path === '/threejs/view.html' || view.path === '/aframe/view.html') continue;
     app.get([view.path, `${view.path}/`], (req, res) => {
       res.type('html').send(renderViewLanding(view, req));
     });
