@@ -62,5 +62,10 @@ app/data/
 threejs/app/data/
 *.sqlite
 
+# Node/Express runtime
+server/node_modules/
+server/.env
+server/data/
+
 # OS junk
 .DS_Store
