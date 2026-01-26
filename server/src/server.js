@@ -33,14 +33,16 @@ app.use('/api', apiRouter);
 app.use(`${BASE_PATH}/api`, apiRouter);
 app.use('/aframe/api', apiRouter);
 app.use('/p5/api', apiRouter);
+app.use('/c2/api', apiRouter);
 
-// Image proxy (legacy .php path)
-app.get('/api/image-proxy.php', imageProxyHandler);
-app.get(`${BASE_PATH}/api/image-proxy.php`, imageProxyHandler);
-app.get('/aframe/api/image-proxy.php', imageProxyHandler);
-app.get('/p5/api/image-proxy.php', imageProxyHandler);
+// Image proxy
+app.get('/api/image-proxy', imageProxyHandler);
+app.get(`${BASE_PATH}/api/image-proxy`, imageProxyHandler);
+app.get('/aframe/api/image-proxy', imageProxyHandler);
+app.get('/p5/api/image-proxy', imageProxyHandler);
+app.get('/c2/api/image-proxy', imageProxyHandler);
 
-// Block direct access to server-side PHP/app files.
+// Block direct access to server-side/legacy paths.
 app.use((req, res, next) => {
   if (req.path.startsWith(`${BASE_PATH}/app`)) {
     res.status(403).send('Forbidden');
@@ -51,6 +53,10 @@ app.use((req, res, next) => {
     return;
   }
   if (req.path.startsWith('/p5/app')) {
+    res.status(403).send('Forbidden');
+    return;
+  }
+  if (req.path.startsWith('/c2/app')) {
     res.status(403).send('Forbidden');
     return;
   }
@@ -96,6 +102,18 @@ app.use('/aframe', express.static(aframeDir, { index: false }));
 // Serve static p5 app
 const p5Dir = path.join(__dirname, '..', '..', 'p5');
 app.use('/p5', express.static(p5Dir, { index: false }));
+
+// Redirect /c2 to its builder
+app.get('/c2', (req, res) => {
+  res.redirect(302, '/c2/builder.html');
+});
+app.get('/c2/', (req, res) => {
+  res.redirect(302, '/c2/builder.html');
+});
+
+// Serve static c2 app
+const c2Dir = path.join(__dirname, '..', '..', 'c2');
+app.use('/c2', express.static(c2Dir, { index: false }));
 
 // JSON parse errors
 app.use((err, req, res, next) => {

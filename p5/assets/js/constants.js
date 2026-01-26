@@ -2,7 +2,7 @@
 
 /**
  * Central configuration constants for frontend validation.
- * These should match the PHP constants in app/lib/constants.php
+ * These should match the Node constants in server/src/constants.js
  */
 
 /**
@@ -16,7 +16,7 @@
  * IMPORTANT: 
  *   - Do NOT include a trailing slash
  *   - Do include a leading slash (except for root, which should be empty string)
- *   - This value should match BASE_PATH in app/lib/config.php
+ *   - This value should match BASE_PATH in server/src/config.js
  */
 export const BASE_PATH = '/p5';
 
@@ -84,7 +84,13 @@ export const SHAPES = [
 export const API_ENDPOINTS = {
   PIECES: basePath('/api/pieces'),
   HEALTH: basePath('/api/health'),
-  DEBUG_DB: basePath('/api/debug/db')
+  DEBUG_DB: basePath('/api/debug/db'),
+  RECAPTCHA_SITE_KEY: basePath('/api/recaptcha/site-key')
 };
 
 export const ALLOWED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp'];
+
+export const RECAPTCHA = {
+  ACTION_CREATE: 'create_piece',
+  ACTION_DELETE: 'delete_piece'
+};

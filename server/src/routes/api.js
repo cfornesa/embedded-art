@@ -15,6 +15,7 @@ const {
   validateConfig,
 } = require('../validation');
 const { getPool, ensureSchema, dbHealth, dbDebugInfo, mysqlDebugInfo } = require('../db');
+const { getRecaptchaConfig, verifyRecaptcha } = require('../recaptcha');
 const {
   sendPieceCreatedEmail,
   sendPieceDeletedEmail,
@@ -29,7 +30,7 @@ function applyCors(req, res, next) {
   if (allowAny || ALLOWED_ORIGINS.includes(origin)) {
     res.set('Access-Control-Allow-Origin', allowAny ? '*' : origin);
     res.set('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
-    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, X-Admin-Key, X-Recaptcha-Token');
     res.set('Access-Control-Max-Age', '86400');
   }
 
@@ -50,6 +51,47 @@ function buildBaseUrl(req) {
 
 function handleValidationError(res, error) {
   res.status(400).json({ error: error.message || 'Invalid request' });
+}
+
+async function requireRecaptcha(req, res, expectedAction) {
+  const token = String(req.get('X-Recaptcha-Token') || '');
+  if (!token) {
+    res.status(400).json({ error: 'Missing reCAPTCHA token' });
+    return false;
+  }
+
+  const config = getRecaptchaConfig();
+  if (!config.siteKey || !config.secretKey) {
+    res.status(500).json({
+      error: 'reCAPTCHA is not configured. Set RECAPTCHA_SITE_KEY and RECAPTCHA_SECRET_KEY.',
+    });
+    return false;
+  }
+
+  try {
+    const result = await verifyRecaptcha({
+      token,
+      expectedAction,
+      remoteIp: req.ip,
+    });
+
+    if (!result.ok) {
+      Logger.warning('recaptcha_failed', {
+        reason: result.reason || 'unknown',
+        score: result.score ?? null,
+        action: result.action ?? null,
+        errors: result.errors ?? null,
+      }, req);
+      res.status(403).json({ error: 'reCAPTCHA verification failed' });
+      return false;
+    }
+  } catch (error) {
+    Logger.warning('recaptcha_error', { error: error.message || 'unknown' }, req);
+    res.status(502).json({ error: 'reCAPTCHA verification failed' });
+    return false;
+  }
+
+  return true;
 }
 
 async function getPieceByRef(pool, ref) {
@@ -97,8 +139,20 @@ router.get('/debug/mysql', async (req, res) => {
   }
 });
 
+router.get('/recaptcha/site-key', (req, res) => {
+  const config = getRecaptchaConfig();
+  if (!config.siteKey) {
+    res.status(500).json({ error: 'reCAPTCHA site key is not configured' });
+    return;
+  }
+
+  res.json({ siteKey: config.siteKey });
+});
+
 router.post('/pieces', async (req, res) => {
   if (!checkRateLimit(req, res)) return;
+
+  if (!(await requireRecaptcha(req, res, 'create_piece'))) return;
 
   try {
     const body = req.body || {};
@@ -401,6 +455,8 @@ router.delete('/pieces/:ref', async (req, res) => {
   }
 
   try {
+    if (!(await requireRecaptcha(req, res, 'delete_piece'))) return;
+
     const pool = await getPool();
     await ensureSchema();
 

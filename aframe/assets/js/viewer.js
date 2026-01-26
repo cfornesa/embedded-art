@@ -19,39 +19,25 @@ if (!ref) {
 }
 
 async function fetchPiece(refValue) {
-  const candidates = [
-    `${basePath('/api/pieces')}/${encodeURIComponent(refValue)}`,
-    `${basePath('/api/index.php/pieces')}/${encodeURIComponent(refValue)}`
-  ];
-
-  let lastErr = null;
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) {
-        const txt = await res.text().catch(() => '');
-        throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ''}`.trim());
-      }
-
-      const ct = (res.headers.get('content-type') || '').toLowerCase();
-      if (!ct.includes('application/json')) {
-        const txt = await res.text().catch(() => '');
-        const snippet = (txt || '').slice(0, 200);
-        throw new Error(
-          `API did not return JSON from ${url}.\n` +
-          `Content-Type: ${ct || '(missing)'}\n` +
-          `First bytes: ${snippet || '(empty response)'}`
-        );
-      }
-
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
-    }
+  const url = `${basePath('/api/pieces')}/${encodeURIComponent(refValue)}`;
+  const res = await fetch(url, { cache: 'no-store' });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ''}`.trim());
   }
 
-  throw lastErr || new Error('Failed to fetch piece');
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  if (!ct.includes('application/json')) {
+    const txt = await res.text().catch(() => '');
+    const snippet = (txt || '').slice(0, 200);
+    throw new Error(
+      `API did not return JSON from ${url}.\n` +
+      `Content-Type: ${ct || '(missing)'}\n` +
+      `First bytes: ${snippet || '(empty response)'}`
+    );
+  }
+
+  return await res.json();
 }
 
 function ensureSpinComponent() {
@@ -115,9 +101,9 @@ function wrapWithCorsProxy(url) {
     if (isSameOrigin) {
       return url;
     }
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   } catch (e) {
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   }
 }
 
@@ -343,6 +329,6 @@ fetchPiece(ref)
   .catch((err) => {
     showMsg(
       `Error loading piece.\n\n${err?.message || String(err)}\n\n` +
-      'If you see HTML or PHP output here, your /api route is not returning JSON.'
+      'If you see HTML here, your /api route is not returning JSON. Confirm /api/pieces/{id} is reachable.'
     );
   });

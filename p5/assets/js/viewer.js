@@ -23,46 +23,27 @@ if (!ref) {
   throw new Error("Missing id");
 }
 
-/**
- * Try both API styles:
- *  - /api/pieces/{ref}           (pretty route)
- *  - /api/index.php/pieces/{ref} (works without rewrites)
- */
 async function fetchPiece(refValue) {
-  const candidates = [
-    `${basePath('/api/pieces')}/${encodeURIComponent(refValue)}`,
-    `${basePath('/api/index.php/pieces')}/${encodeURIComponent(refValue)}`
-  ];
+  const url = `${basePath('/api/pieces')}/${encodeURIComponent(refValue)}`;
+  const res = await fetch(url, { cache: "no-store" });
 
-  let lastErr = null;
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ""}`.trim());
-      }
-
-      const ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (!ct.includes("application/json")) {
-        const txt = await res.text().catch(() => "");
-        const snippet = (txt || "").slice(0, 200);
-        throw new Error(
-          `API did not return JSON from ${url}.\n` +
-          `Content-Type: ${ct || "(missing)"}\n` +
-          `First bytes: ${snippet || "(empty response)"}`
-        );
-      }
-
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
-    }
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ""}`.trim());
   }
 
-  throw lastErr || new Error("Failed to fetch piece");
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (!ct.includes("application/json")) {
+    const txt = await res.text().catch(() => "");
+    const snippet = (txt || "").slice(0, 200);
+    throw new Error(
+      `API did not return JSON from ${url}.\n` +
+      `Content-Type: ${ct || "(missing)"}\n` +
+      `First bytes: ${snippet || "(empty response)"}`
+    );
+  }
+
+  return await res.json();
 }
 
 function clamp(value, min, max) {
@@ -103,9 +84,9 @@ function wrapWithCorsProxy(url) {
       return url;
     }
 
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   } catch (e) {
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   }
 }
 
@@ -271,7 +252,7 @@ async function init() {
     // eslint-disable-next-line no-new
     new window.p5(sketch);
   } catch (err) {
-    showMsg(`Error loading piece.\n\n${err?.message || String(err)}\n\nIf you see “// assets/…”, your /api route is not returning JSON. This viewer will also try /api/index.php/pieces/{id} automatically.`);
+    showMsg(`Error loading piece.\n\n${err?.message || String(err)}\n\nIf you see “// assets/…”, your /api route is not returning JSON. Confirm the API is running and reachable at /api/pieces/{id}.`);
   }
 }
 
