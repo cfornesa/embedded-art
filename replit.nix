@@ -1,6 +1,5 @@
 { pkgs }: {
 	deps = [
-   pkgs.sqlite
-		pkgs.php82
+		pkgs.nodejs_20
 	];
 }

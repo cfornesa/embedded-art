@@ -1,6 +1,7 @@
 // assets/js/builder.js
 
-import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS, BASE_PATH } from './constants.js';
+import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS, BASE_PATH, RECAPTCHA } from './constants.js';
+import { getRecaptchaToken } from './recaptcha.js';
 
 // -------------------------
 // Safe DOM helpers
@@ -656,9 +657,20 @@ if (!form) {
     setMsg("Creating…", "warning");
 
     try {
+      let recaptchaToken = "";
+      try {
+        recaptchaToken = await getRecaptchaToken(RECAPTCHA.ACTION_CREATE);
+      } catch (err) {
+        setMsg(err?.message || "reCAPTCHA failed to load. Please refresh and try again.", "danger");
+        return;
+      }
+
       const res = await fetch(API_ENDPOINTS.PIECES, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Recaptcha-Token": recaptchaToken
+        },
         body: JSON.stringify(payload)
       });
 

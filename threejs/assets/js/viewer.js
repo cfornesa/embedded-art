@@ -19,49 +19,29 @@ if (!ref) {
   throw new Error("Missing id");
 }
 
-/**
- * Try both API styles:
- *  - /api/pieces/{ref}           (pretty route)
- *  - /api/index.php/pieces/{ref} (works without rewrites)
- */
 async function fetchPiece(ref) {
-  const candidates = [
-    `${basePath('/api/pieces')}/${encodeURIComponent(ref)}`,
-    `${basePath('/api/index.php/pieces')}/${encodeURIComponent(ref)}`
-  ];
+  const url = `${basePath('/api/pieces')}/${encodeURIComponent(ref)}`;
+  const res = await fetch(url, { cache: "no-store" });
 
-  let lastErr = null;
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, { cache: "no-store" });
-
-      // If it’s not OK, read text for debugging but keep it short
-      if (!res.ok) {
-        const txt = await res.text().catch(() => "");
-        throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ""}`.trim());
-      }
-
-      const ct = (res.headers.get("content-type") || "").toLowerCase();
-      if (!ct.includes("application/json")) {
-        // Not JSON -> avoid res.json() crash, show a useful snippet
-        const txt = await res.text().catch(() => "");
-        const snippet = (txt || "").slice(0, 200);
-        throw new Error(
-          `API did not return JSON from ${url}.\n` +
-          `Content-Type: ${ct || "(missing)"}\n` +
-          `First bytes: ${snippet || "(empty response)"}`
-        );
-      }
-
-      return await res.json();
-    } catch (e) {
-      lastErr = e;
-      // try next candidate
-    }
+  // If it’s not OK, read text for debugging but keep it short
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`Not available (${res.status}). ${txt ? txt.slice(0, 160) : ""}`.trim());
   }
 
-  throw lastErr || new Error("Failed to fetch piece");
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (!ct.includes("application/json")) {
+    // Not JSON -> avoid res.json() crash, show a useful snippet
+    const txt = await res.text().catch(() => "");
+    const snippet = (txt || "").slice(0, 200);
+    throw new Error(
+      `API did not return JSON from ${url}.\n` +
+      `Content-Type: ${ct || "(missing)"}\n` +
+      `First bytes: ${snippet || "(empty response)"}`
+    );
+  }
+
+  return await res.json();
 }
 
 function makeGeometry(type, size) {
@@ -128,7 +108,7 @@ function clear() {
  * Wrap cross-origin image URLs with self-hosted CORS proxy to enable texture loading.
  * Same-origin images are returned as-is (no proxy needed).
  * 
- * Uses /api/image-proxy.php instead of third-party services for privacy.
+ * Uses /api/image-proxy instead of third-party services for privacy.
  */
 function wrapWithCorsProxy(url) {
   if (!url || typeof url !== 'string') return url;
@@ -144,10 +124,10 @@ function wrapWithCorsProxy(url) {
 
     // Wrap cross-origin images with self-hosted CORS proxy
     // This keeps user URLs private (not sent to third-party services)
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   } catch (e) {
     // If URL parsing fails, try proxy anyway
-    return `${basePath('/api/image-proxy.php')}?url=${encodeURIComponent(url)}`;
+    return `${basePath('/api/image-proxy')}?url=${encodeURIComponent(url)}`;
   }
 }
 
@@ -415,7 +395,7 @@ fetchPiece(ref)
   .then((piece) => buildFromPiece(piece))
   .catch((err) => {
     // If this is embedded, show a clean message instead of a JSON parse crash
-    showMsg(`Error loading piece.\n\n${err?.message || String(err)}\n\nIf you see “// assets/…”, your /api route is not returning JSON. This viewer will also try /api/index.php/pieces/{id} automatically.`);
+    showMsg(`Error loading piece.\n\n${err?.message || String(err)}\n\nIf you see “// assets/…”, your /api route is not returning JSON. Confirm the API is running and reachable at /api/pieces/{id}.`);
   });
 
 animate();

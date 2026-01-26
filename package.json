@@ -1,0 +1,8 @@
+{
+  "name": "embedded-art-platform",
+  "private": true,
+  "scripts": {
+    "start": "cd server && npm start",
+    "dev": "cd server && npm run dev"
+  }
+}

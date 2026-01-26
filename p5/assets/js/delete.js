@@ -1,6 +1,7 @@
 // assets/js/delete.js
 
-import { API_ENDPOINTS } from './constants.js';
+import { API_ENDPOINTS, RECAPTCHA } from './constants.js';
+import { getRecaptchaToken } from './recaptcha.js';
 
 const pieceRefEl = document.querySelector("#pieceRef");
 const adminKeyEl = document.querySelector("#adminKey");
@@ -66,6 +67,14 @@ form.addEventListener("submit", async (e) => {
   if (!adminKey) return setMsg("Admin key is required.", "warning");
   if (confirmText !== "DELETE") return setMsg('Type "DELETE" exactly to confirm.', "warning");
 
+  let recaptchaToken = "";
+  try {
+    recaptchaToken = await getRecaptchaToken(RECAPTCHA.ACTION_DELETE);
+  } catch (err) {
+    setMsg(err?.message || "reCAPTCHA failed to load. Please refresh and try again.", "danger");
+    return;
+  }
+
   setMsg("Fetching piece data before deletion…", "info");
 
   // First, fetch the piece to get configuration backup BEFORE deletion
@@ -85,7 +94,10 @@ form.addEventListener("submit", async (e) => {
 
   const res = await fetch(`${API_ENDPOINTS.PIECES}/${encodeURIComponent(ref)}`, {
     method: "DELETE",
-    headers: { "X-Admin-Key": adminKey }
+    headers: {
+      "X-Admin-Key": adminKey,
+      "X-Recaptcha-Token": recaptchaToken
+    }
   });
 
   const data = await res.json().catch(() => ({}));
