@@ -158,6 +158,8 @@ function buildShapeInstances(width, height, cfg) {
     const baseColor = shape?.palette?.baseColor || '#ffffff';
     const textureUrl = (shape?.textureUrl || '').trim();
     const strokeEnabled = shape?.stroke?.enabled ?? true;
+    const strokeWeightRaw = Number(shape?.stroke?.weight);
+    const strokeWeight = Number.isFinite(strokeWeightRaw) ? strokeWeightRaw : null;
 
     for (let i = 0; i < count; i += 1) {
       const color = jitterColor(baseColor);
@@ -169,6 +171,7 @@ function buildShapeInstances(width, height, cfg) {
         color,
         strokeEnabled,
         strokeColor: color,
+        strokeWeight,
         textureUrl,
         x: padding + Math.random() * spreadX,
         y: padding + Math.random() * spreadY,
@@ -245,10 +248,14 @@ function drawShape(renderer, ctx, shape, textureMap) {
     ctx.strokeStyle = shape.strokeEnabled ? shape.strokeColor : 'transparent';
   }
 
+  const lineWeight = Number.isFinite(shape.strokeWeight)
+    ? Math.max(0, shape.strokeWeight)
+    : Math.max(1, shape.size * 0.08);
+
   if (typeof renderer.lineWidth === 'function') {
-    renderer.lineWidth(shape.strokeEnabled ? Math.max(1, shape.size * 0.08) : 0);
+    renderer.lineWidth(shape.strokeEnabled ? lineWeight : 0);
   } else if (ctx) {
-    ctx.lineWidth = shape.strokeEnabled ? Math.max(1, shape.size * 0.08) : 0;
+    ctx.lineWidth = shape.strokeEnabled ? lineWeight : 0;
   }
 
   switch (shape.type) {

@@ -127,7 +127,12 @@ form.addEventListener("submit", async (e) => {
         configSummary += `  - Number of shapes: ${shape.count || 0}\n`;
         configSummary += `  - Size: ${shape.size || 1}\n`;
         configSummary += `  - Base color: ${shape.palette?.baseColor || '#ffffff'}\n`;
-        configSummary += `  - Stroke: ${shape.stroke?.enabled === false ? 'off' : 'on'}\n`;
+        if (shape.stroke?.enabled === false) {
+          configSummary += `  - Stroke: off\n`;
+        } else {
+          const strokeWeight = Number.isFinite(shape.stroke?.weight) ? shape.stroke.weight : "auto";
+          configSummary += `  - Stroke: on (weight ${strokeWeight})\n`;
+        }
         configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
       });
     }

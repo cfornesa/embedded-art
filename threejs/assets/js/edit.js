@@ -1,6 +1,7 @@
 // assets/js/edit.js
 
 import { LIMITS, SHAPES, API_ENDPOINTS, ALLOWED_IMAGE_EXTENSIONS } from './constants.js';
+import { createViewer } from './viewer-core.js';
 
 // -------------------------
 // DOM helpers
@@ -23,6 +24,49 @@ const pieceInfo = $("#pieceInfo");
 const saveBtn = $("#saveBtn");
 const resetBtn = $("#resetBtn");
 const cancelEditBtn = $("#cancelEditBtn");
+
+// Live preview elements - initialize after DOM is ready
+let previewViewer = null;
+
+function initPreview() {
+  const previewWrap = document.getElementById("previewWrap");
+  const previewMsg = document.getElementById("previewMsg");
+  
+  if (previewWrap && !previewViewer) {
+    previewViewer = createViewer({ wrap: previewWrap, msg: previewMsg });
+    if (previewViewer) {
+      previewViewer.setMessage("Waiting for preview data...");
+      // Send initial preview after a short delay
+      setTimeout(() => {
+        updatePreviewFromForm();
+      }, 100);
+    }
+  }
+}
+
+function sendPreviewConfig(config, message = null) {
+  if (!previewViewer) {
+    // Try to initialize if not already done
+    initPreview();
+    if (!previewViewer) return;
+  }
+
+  if (message) {
+    previewViewer.setMessage(message);
+  } else {
+    previewViewer.clearMessage();
+  }
+
+  if (config) {
+    previewViewer.renderConfig(config).catch((err) => {
+      if (previewViewer) {
+        previewViewer.setMessage(`Error rendering preview: ${err?.message || err}`);
+      }
+    });
+  } else if (!message) {
+    previewViewer.setMessage("No configuration provided.");
+  }
+}
 
 // Form fields
 const bgColorEl = $("#bgColor");
@@ -115,6 +159,56 @@ function getVal(id) {
   return (el?.value || "").toString().trim();
 }
 
+function buildConfigFromForm() {
+  const bg = getVal("bgColor");
+  if (!isHexColor(bg)) return { error: "Background color must be a valid hex color." };
+
+  const bgImageUrl = getVal("bgImageUrl");
+  const bgErr = validateImageUrl(bgImageUrl);
+  if (bgErr) return { error: `Background image URL: ${bgErr}` };
+
+  let total = 0;
+  const shapes = SHAPES.map((s) => {
+    const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
+    const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
+    const baseColor = getVal(s.colorId);
+    const textureUrl = getVal(s.texId);
+
+    total += count;
+
+    return {
+      type: s.type,
+      count,
+      size,
+      palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
+      textureUrl: textureUrl || ""
+    };
+  });
+
+  if (total > LIMITS.TOTAL_INSTANCES_MAX) {
+    return { error: `Total instances across all shapes must be ${LIMITS.TOTAL_INSTANCES_MAX} or less.` };
+  }
+
+  for (const s of shapes) {
+    if (s.textureUrl) {
+      const err = validateImageUrl(s.textureUrl);
+      if (err) return { error: `${s.type} texture URL: ${err}` };
+    }
+  }
+
+  return {
+    config: {
+      version: 2,
+      bg,
+      bgImageUrl: bgImageUrl || "",
+      cameraZ: 10,
+      rotationSpeed: 0.01,
+      shapes
+    },
+    total
+  };
+}
+
 // -------------------------
 // Badge updates
 // -------------------------
@@ -122,11 +216,13 @@ function updateBadges() {
   let total = 0;
 
   for (const s of SHAPES) {
-    const count = getInt(s.countId);
-    const size = getFloat(s.sizeId);
+    const countEl = document.getElementById(s.countId);
+    const sizeEl = document.getElementById(s.sizeId);
+    const count = countEl ? parseInt(countEl.value, 10) || 0 : 0;
+    const size = sizeEl ? parseFloat(sizeEl.value) || 0 : 0;
 
-    const countVal = $(`#${s.countValId}`);
-    const sizeVal = $(`#${s.sizeValId}`);
+    const countVal = document.getElementById(s.countValId);
+    const sizeVal = document.getElementById(s.sizeValId);
 
     if (countVal) countVal.textContent = String(count);
     if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? size.toFixed(1) : "0.0";
@@ -134,19 +230,133 @@ function updateBadges() {
     total += count;
   }
 
-  if (totalBadge) {
-    totalBadge.textContent = String(total);
-    if (total > LIMITS.TOTAL_INSTANCES_MAX) totalBadge.classList.add("text-danger");
-    else totalBadge.classList.remove("text-danger");
+  const totalBadgeEl = document.getElementById("totalBadge");
+  if (totalBadgeEl) {
+    totalBadgeEl.textContent = String(total);
+    if (total > LIMITS.TOTAL_INSTANCES_MAX) {
+      totalBadgeEl.classList.add("text-danger");
+    } else {
+      totalBadgeEl.classList.remove("text-danger");
+    }
   }
 }
 
-// Wire range listeners
-for (const s of SHAPES) {
-  const c = $(`#${s.countId}`);
-  const z = $(`#${s.sizeId}`);
-  c?.addEventListener("input", updateBadges);
-  z?.addEventListener("input", updateBadges);
+// -------------------------
+// Live preview updates
+// -------------------------
+let previewDebounce = null;
+
+function updatePreviewFromForm() {
+  // Ensure preview is initialized
+  if (!previewViewer) {
+    initPreview();
+    if (!previewViewer) return;
+  }
+  
+  const result = buildConfigFromForm();
+
+  if (result.error) {
+    sendPreviewConfig(null, result.error);
+  } else if (result.total <= 0) {
+    sendPreviewConfig(result.config, "Add at least one shape to see the preview.");
+  } else {
+    sendPreviewConfig(result.config);
+  }
+}
+
+function schedulePreviewUpdate() {
+  // Ensure preview is initialized
+  if (!previewViewer) {
+    initPreview();
+  }
+  if (previewDebounce) clearTimeout(previewDebounce);
+  previewDebounce = setTimeout(() => updatePreviewFromForm(), 200);
+}
+
+// Wire all form inputs to update badges and preview
+function wireFormListeners() {
+  // Wire sliders to update badges immediately
+  for (const s of SHAPES) {
+    const countSlider = document.getElementById(s.countId);
+    const sizeSlider = document.getElementById(s.sizeId);
+    const countBadge = document.getElementById(s.countValId);
+    const sizeBadge = document.getElementById(s.sizeValId);
+    
+    // Count slider - update badge on every change
+    if (countSlider && countBadge) {
+      const updateCount = function() {
+        const val = parseInt(this.value, 10) || 0;
+        countBadge.textContent = String(val);
+        updateBadges();
+        schedulePreviewUpdate();
+      };
+      countSlider.addEventListener("input", updateCount);
+      countSlider.addEventListener("change", updateCount);
+      // Also trigger on mousemove for better responsiveness
+      countSlider.addEventListener("mousemove", function(e) {
+        if (e.buttons === 1) updateCount.call(this);
+      });
+    }
+    
+    // Size slider - update badge on every change
+    if (sizeSlider && sizeBadge) {
+      const updateSize = function() {
+        const val = parseFloat(this.value) || 0;
+        sizeBadge.textContent = Number.isFinite(val) ? val.toFixed(1) : "0.0";
+        updateBadges();
+        schedulePreviewUpdate();
+      };
+      sizeSlider.addEventListener("input", updateSize);
+      sizeSlider.addEventListener("change", updateSize);
+      // Also trigger on mousemove for better responsiveness
+      sizeSlider.addEventListener("mousemove", function(e) {
+        if (e.buttons === 1) updateSize.call(this);
+      });
+    }
+    
+    // Color picker
+    const colorEl = document.getElementById(s.colorId);
+    if (colorEl) {
+      colorEl.addEventListener("input", schedulePreviewUpdate);
+      colorEl.addEventListener("change", schedulePreviewUpdate);
+    }
+    
+    // Texture URL input
+    const texEl = document.getElementById(s.texId);
+    if (texEl) {
+      texEl.addEventListener("input", schedulePreviewUpdate);
+      texEl.addEventListener("change", schedulePreviewUpdate);
+    }
+  }
+  
+  // Background color
+  if (bgColorEl) {
+    bgColorEl.addEventListener("input", schedulePreviewUpdate);
+    bgColorEl.addEventListener("change", schedulePreviewUpdate);
+  }
+  
+  // Background image URL
+  if (bgImageUrlEl) {
+    bgImageUrlEl.addEventListener("input", schedulePreviewUpdate);
+    bgImageUrlEl.addEventListener("change", schedulePreviewUpdate);
+  }
+}
+
+// Wire listeners when DOM is ready
+function initFormListeners() {
+  wireFormListeners();
+  // Force initial badge update
+  updateBadges();
+  // Try to send initial preview (will retry if preview not ready)
+  setTimeout(() => {
+    updatePreviewFromForm();
+  }, 500);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initFormListeners);
+} else {
+  initFormListeners();
 }
 
 // -------------------------
@@ -189,6 +399,7 @@ function populateForm(pieceData) {
   }
 
   updateBadges();
+  updatePreviewFromForm();
 }
 
 // -------------------------
@@ -310,65 +521,22 @@ if (editorForm) {
       return;
     }
 
-    // Validate background color
-    const bg = getVal("bgColor");
-    if (!isHexColor(bg)) {
-      setEditorMsg("Background color must be a valid hex color.", "warning");
+    const configResult = buildConfigFromForm();
+    if (configResult.error) {
+      const isLimitError = configResult.error.includes("Total instances");
+      setEditorMsg(configResult.error, isLimitError ? "danger" : "warning");
+      queuePreviewPayload({
+        type: "preview:config",
+        message: configResult.error,
+        config: null
+      });
       return;
     }
 
-    // Validate background image URL
-    const bgImageUrl = getVal("bgImageUrl");
-    const bgErr = validateImageUrl(bgImageUrl);
-    if (bgErr) {
-      setEditorMsg(`Background image URL: ${bgErr}`, "warning");
-      return;
-    }
-
-    // Build shapes array
-    let total = 0;
-    const shapes = SHAPES.map((s) => {
-      const count = Math.max(LIMITS.SHAPE_COUNT_MIN, Math.min(LIMITS.SHAPE_COUNT_MAX, getInt(s.countId)));
-      const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
-      const baseColor = getVal(s.colorId);
-      const textureUrl = getVal(s.texId);
-
-      total += count;
-
-      return {
-        type: s.type,
-        count,
-        size,
-        palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
-        textureUrl: textureUrl || ""
-      };
-    });
-
-    if (total > LIMITS.TOTAL_INSTANCES_MAX) {
-      setEditorMsg(`Total instances across all shapes must be ${LIMITS.TOTAL_INSTANCES_MAX} or less.`, "danger");
-      return;
-    }
-
-    // Validate texture URLs
-    for (const s of shapes) {
-      if (s.textureUrl) {
-        const err = validateImageUrl(s.textureUrl);
-        if (err) {
-          setEditorMsg(`${s.type} texture URL: ${err}`, "warning");
-          return;
-        }
-      }
-    }
+    updatePreviewFromForm();
 
     const payload = {
-      config: {
-        version: 2,
-        bg,
-        bgImageUrl: bgImageUrl || "",
-        cameraZ: 10,
-        rotationSpeed: 0.01,
-        shapes
-      }
+      config: configResult.config
     };
 
     if (saveInProgress) {

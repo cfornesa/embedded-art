@@ -129,12 +129,17 @@ function updateBadges() {
   for (const s of SHAPES) {
     const count = getInt(s.countId);
     const size = getFloat(s.sizeId);
+    const strokeWeight = s.strokeWeightId ? getFloat(s.strokeWeightId) : null;
 
     const countVal = $(`#${s.countValId}`);
     const sizeVal = $(`#${s.sizeValId}`);
+    const strokeWeightVal = s.strokeWeightValId ? $(`#${s.strokeWeightValId}`) : null;
 
     if (countVal) countVal.textContent = String(count);
     if (sizeVal) sizeVal.textContent = Number.isFinite(size) ? size.toFixed(1) : "0.0";
+    if (strokeWeightVal && Number.isFinite(strokeWeight)) {
+      strokeWeightVal.textContent = String(Math.round(strokeWeight));
+    }
 
     total += count;
   }
@@ -150,8 +155,15 @@ function updateBadges() {
 for (const s of SHAPES) {
   const c = $(`#${s.countId}`);
   const z = $(`#${s.sizeId}`);
+  const w = s.strokeWeightId ? $(`#${s.strokeWeightId}`) : null;
   c?.addEventListener("input", updateBadges);
   z?.addEventListener("input", updateBadges);
+  if (w) {
+    w.addEventListener("input", () => {
+      w.dataset.auto = "false";
+      updateBadges();
+    });
+  }
 }
 
 // -------------------------
@@ -191,6 +203,13 @@ function populateForm(pieceData) {
       const strokeToggle = shapeDef.strokeToggleId ? $(`#${shapeDef.strokeToggleId}`) : null;
       if (strokeToggle) {
         strokeToggle.checked = shapeData?.stroke?.enabled ?? true;
+      }
+      const strokeWeightEl = shapeDef.strokeWeightId ? $(`#${shapeDef.strokeWeightId}`) : null;
+      if (strokeWeightEl && Number.isFinite(shapeData?.stroke?.weight)) {
+        strokeWeightEl.value = String(shapeData.stroke.weight);
+        strokeWeightEl.dataset.auto = "false";
+      } else if (strokeWeightEl) {
+        strokeWeightEl.dataset.auto = "true";
       }
 
       // Set texture
@@ -343,6 +362,11 @@ if (editorForm) {
       const size = Math.max(LIMITS.SIZE_MIN, Math.min(LIMITS.SIZE_MAX, getFloat(s.sizeId)));
       const baseColor = getVal(s.colorId);
       const strokeEnabled = s.strokeToggleId ? getBool(s.strokeToggleId) : true;
+      const strokeWeightEl = s.strokeWeightId ? $(`#${s.strokeWeightId}`) : null;
+      const strokeWeight = strokeWeightEl
+        ? Math.max(LIMITS.STROKE_WEIGHT_MIN, Math.min(LIMITS.STROKE_WEIGHT_MAX, getFloat(s.strokeWeightId)))
+        : null;
+      const strokeWeightIsAuto = strokeWeightEl?.dataset?.auto === "true";
       const textureUrl = getVal(s.texId);
 
       total += count;
@@ -352,7 +376,10 @@ if (editorForm) {
         count,
         size,
         palette: { baseColor: isHexColor(baseColor) ? baseColor : "#ffffff" },
-        stroke: { enabled: Boolean(strokeEnabled) },
+        stroke: {
+          enabled: Boolean(strokeEnabled),
+          weight: !strokeWeightIsAuto && Number.isFinite(strokeWeight) ? strokeWeight : null
+        },
         textureUrl: textureUrl || ""
       };
     });
@@ -430,7 +457,12 @@ if (editorForm) {
         configSummary += `  - Number of shapes: ${shape.count}\n`;
         configSummary += `  - Size: ${shape.size}\n`;
         configSummary += `  - Base color: ${shape.palette.baseColor}\n`;
-        configSummary += `  - Stroke: ${shape.stroke?.enabled ? 'on' : 'off'}\n`;
+        if (shape.stroke?.enabled) {
+          const strokeWeight = Number.isFinite(shape.stroke?.weight) ? shape.stroke.weight : "auto";
+          configSummary += `  - Stroke: on (weight ${strokeWeight})\n`;
+        } else {
+          configSummary += `  - Stroke: off\n`;
+        }
         configSummary += `  - Texture URL: ${shape.textureUrl || '(none)'}\n`;
       });
 
