@@ -39,7 +39,9 @@ export const LIMITS = {
   SHAPE_COUNT_MIN: 0,
   TOTAL_INSTANCES_MAX: 40,
   SIZE_MIN: 0.1,
-  SIZE_MAX: 10.0
+  SIZE_MAX: 10.0,
+  STROKE_WEIGHT_MIN: 0,
+  STROKE_WEIGHT_MAX: 20
 };
 
 export const SHAPES = [
@@ -49,6 +51,8 @@ export const SHAPES = [
     sizeId: "rectSize",
     colorId: "rectColor",
     strokeToggleId: "rectStrokeEnabled",
+    strokeWeightId: "rectStrokeWeight",
+    strokeWeightValId: "rectStrokeWeightVal",
     texId: "rectTex",
     countValId: "rectCountVal",
     sizeValId: "rectSizeVal"
@@ -59,6 +63,8 @@ export const SHAPES = [
     sizeId: "circleSize",
     colorId: "circleColor",
     strokeToggleId: "circleStrokeEnabled",
+    strokeWeightId: "circleStrokeWeight",
+    strokeWeightValId: "circleStrokeWeightVal",
     texId: "circleTex",
     countValId: "circleCountVal",
     sizeValId: "circleSizeVal"
@@ -69,6 +75,8 @@ export const SHAPES = [
     sizeId: "triangleSize",
     colorId: "triangleColor",
     strokeToggleId: "triangleStrokeEnabled",
+    strokeWeightId: "triangleStrokeWeight",
+    strokeWeightValId: "triangleStrokeWeightVal",
     texId: "triangleTex",
     countValId: "triangleCountVal",
     sizeValId: "triangleSizeVal"
@@ -79,6 +87,8 @@ export const SHAPES = [
     sizeId: "lineSize",
     colorId: "lineColor",
     strokeToggleId: "lineStrokeEnabled",
+    strokeWeightId: "lineStrokeWeight",
+    strokeWeightValId: "lineStrokeWeightVal",
     texId: "lineTex",
     countValId: "lineCountVal",
     sizeValId: "lineSizeVal"

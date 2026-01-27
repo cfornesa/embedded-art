@@ -3,18 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Embed</title>
-  
+  <title>Live Preview</title>
+
   <script src="/shared/theme.js"></script>
-<link rel="icon" href="data:,">
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/shared/theme.css">
   <style>
     html, body { margin:0; height:100%; background: var(--bg); color: var(--fg); font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    #wrap { position: fixed; left: 0; right: 0; top: var(--header-height, 0px); bottom: var(--footer-height, 0px); }
+    #wrap { position: fixed; left: 0; right: 0; top: 0; bottom: 0; }
     #msg {
       position: absolute;
       left: 12px;
-      top: calc(var(--header-height, 0px) + 12px);
+      top: 12px;
       right: 12px;
       padding: 10px 12px;
       border-radius: 12px;
@@ -38,24 +38,10 @@
     }
   }
   </script>
-
-  <script>
-    // Redirect direct visits back to builder (embed is meant for iframes).
-    // Add &standalone=1 if you want to open it directly for debugging.
-    (function () {
-      const params = new URLSearchParams(location.search);
-      const standalone = params.get("standalone") === "1";
-      const isInIframe = window.top !== window.self;
-
-      if (!standalone && !isInIframe) {
-        location.replace("builder.html");
-      }
-    })();
-  </script>
 </head>
 <body class="page-canvas">
   <div id="msg"></div>
   <div id="wrap"></div>
-  <script type="module" src="assets/js/viewer.js?v=3"></script>
+  <script type="module" src="assets/js/preview.js?v=3"></script>
 </body>
 </html>
